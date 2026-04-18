@@ -3,7 +3,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 /**
- * Renai brand mark — minimal filled leaf silhouette with a subtle
+ * RenAI brand mark — minimal filled leaf silhouette with a subtle
  * central vein. Tilted slightly so it reads as organic rather than rigid.
  * Uses `currentColor` for the fill so callers control the brand shade.
  */

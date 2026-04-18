@@ -3,8 +3,6 @@
 import { useActionState } from "react"
 import { Loader2 } from "lucide-react"
 
-import { BrandMark } from "@/components/brand-mark"
-
 import { login, type LoginState } from "@/app/login/actions"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -26,21 +24,19 @@ export function LoginForm({
 
   return (
     <div className={cn("flex flex-col gap-8", className)} {...props}>
-      <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex size-12 items-center justify-center text-primary">
-          <BrandMark className="size-9" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Welcome to Renai
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Sign in to your workspace
-          </p>
-        </div>
+      <div className="flex flex-col items-center gap-1 text-center">
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Welcome to{" "}
+          <span className="bg-gradient-to-br from-primary via-primary to-emerald-500 bg-clip-text text-transparent">
+            RenAI
+          </span>
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Sign in to your workspace
+        </p>
       </div>
 
-      <div className="rounded-2xl border bg-card/60 p-6 shadow-sm ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/5 sm:p-8">
+      <div className="rounded-2xl border bg-card/70 p-6 shadow-xl ring-1 ring-black/5 backdrop-blur-md dark:ring-white/5 sm:p-8">
         <form action={formAction}>
           <input type="hidden" name="from" value={from ?? "/dashboard"} />
           <FieldGroup>
@@ -100,7 +96,7 @@ export function LoginForm({
       </div>
 
       <p className="text-center text-sm text-muted-foreground">
-        Renai is invite-only. Need access? Ask your company admin.
+        RenAI is invite-only. Need access? Ask your company admin.
       </p>
     </div>
   )

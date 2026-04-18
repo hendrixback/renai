@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 
 import { LoginForm } from "@/components/login-form"
+import { LoginBackdrop } from "@/components/login-backdrop"
 import { ModeToggle } from "@/components/mode-toggle"
 import { getCurrentUser } from "@/lib/auth"
 
@@ -22,19 +23,7 @@ export default async function LoginPage({
 
   return (
     <div className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden bg-background p-6 md:p-10">
-      {/* Ambient background — radial gradient + subtle grid */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] [background-size:48px_48px] opacity-[0.15] [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute top-[-10%] left-1/2 size-[600px] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl"
-      />
+      <LoginBackdrop />
 
       <div className="absolute top-4 right-4 z-10">
         <ModeToggle />

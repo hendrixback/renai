@@ -77,7 +77,7 @@ function ClosedSignup({
 }) {
   const message =
     reason === "missing-token"
-      ? "Renai is invite-only. Ask your company admin to send you an invite link."
+      ? "RenAI is invite-only. Ask your company admin to send you an invite link."
       : "This invite is no longer valid — it may have already been used or expired. Ask for a new one.";
 
   return (

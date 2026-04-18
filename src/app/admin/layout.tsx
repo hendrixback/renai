@@ -25,7 +25,7 @@ export default async function AdminLayout({
           <Link href="/admin" className="flex items-center gap-2">
             <ShieldIcon className="size-4 text-primary" />
             <span className="font-semibold tracking-tight">
-              Renai — Platform Admin
+              RenAI — Platform Admin
             </span>
           </Link>
           <nav className="ml-4 flex items-center gap-1 text-sm text-muted-foreground">

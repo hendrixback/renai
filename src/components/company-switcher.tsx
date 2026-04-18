@@ -42,7 +42,7 @@ export function CompanySwitcher({
 
   const active =
     companies.find((c) => c.id === activeId) ??
-    companies[0] ?? { id: "", name: "Renai", role: "—" }
+    companies[0] ?? { id: "", name: "RenAI", role: "—" }
 
   const hasMultiple = companies.length > 1 || isImpersonating
 

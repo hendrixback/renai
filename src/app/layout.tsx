@@ -19,8 +19,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Renai",
-  description: "Renai — Next.js + Prisma + shadcn/ui",
+  title: "RenAI",
+  description: "RenAI — Next.js + Prisma + shadcn/ui",
 };
 
 export default function RootLayout({

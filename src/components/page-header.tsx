@@ -25,7 +25,7 @@ export function PageHeader({
   actions?: React.ReactNode
 }) {
   const trail: Crumb[] = [
-    { label: "Renai", href: "/dashboard" },
+    { label: "RenAI", href: "/dashboard" },
     ...(breadcrumbs ?? []),
     { label: title },
   ]

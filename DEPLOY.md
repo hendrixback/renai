@@ -1,4 +1,4 @@
-# Deploying Renai to Railway
+# Deploying RenAI to Railway
 
 This guide walks through connecting the GitHub repo to a fresh Railway
 project, attaching a managed Postgres plugin, and getting a public URL.

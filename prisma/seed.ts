@@ -70,7 +70,7 @@ async function seedAdminAndCompany() {
     where: { slug: companySlug },
     create: {
       slug: companySlug,
-      name: "Renai Demo Co.",
+      name: "RenAI Demo Co.",
       country: "PT",
     },
     update: {},
