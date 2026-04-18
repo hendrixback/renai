@@ -80,11 +80,18 @@ export function RegisterFuelDialog({ sites }: { sites: Site[] }) {
           <DialogTitle>Register Fuel</DialogTitle>
         </DialogHeader>
         <form action={action}>
+          {/* Explicit hidden inputs mirror the controlled Select state —
+              base-ui's internal hidden-input doesn't always fire inside
+              a portaled Dialog, so we set them ourselves to be safe. */}
+          <input type="hidden" name="fuelType" value={fuelType} />
+          <input type="hidden" name="unit" value={unit} />
+          <input type="hidden" name="region" value={region} />
+          <input type="hidden" name="siteId" value={siteId} />
           <FieldGroup>
             <div className="grid gap-3 md:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="fuelType">Fuel Type</FieldLabel>
-                <Select name="fuelType" value={fuelType} onValueChange={(v) => setFuelType(String(v ?? ""))}>
+                <Select value={fuelType} onValueChange={(v) => setFuelType(String(v ?? ""))}>
                   <SelectTrigger id="fuelType">
                     <SelectValue>
                       {(raw) =>
@@ -104,7 +111,7 @@ export function RegisterFuelDialog({ sites }: { sites: Site[] }) {
               </Field>
               <Field>
                 <FieldLabel htmlFor="unit">Unit</FieldLabel>
-                <Select name="unit" value={unit} onValueChange={(v) => setUnit(String(v ?? ""))}>
+                <Select value={unit} onValueChange={(v) => setUnit(String(v ?? ""))}>
                   <SelectTrigger id="unit">
                     <SelectValue>
                       {(raw) =>
@@ -146,7 +153,7 @@ export function RegisterFuelDialog({ sites }: { sites: Site[] }) {
               </Field>
               <Field>
                 <FieldLabel htmlFor="region">Emission Factor Region</FieldLabel>
-                <Select name="region" value={region} onValueChange={(v) => setRegion(String(v ?? "GLOBAL"))}>
+                <Select value={region} onValueChange={(v) => setRegion(String(v ?? "GLOBAL"))}>
                   <SelectTrigger id="region">
                     <SelectValue>
                       {(raw) =>
@@ -169,7 +176,7 @@ export function RegisterFuelDialog({ sites }: { sites: Site[] }) {
               <Field>
                 <FieldLabel htmlFor="siteId">Plant / Location</FieldLabel>
                 {sites.length > 0 ? (
-                  <Select name="siteId" value={siteId} onValueChange={(v) => setSiteId(String(v ?? ""))}>
+                  <Select value={siteId} onValueChange={(v) => setSiteId(String(v ?? ""))}>
                     <SelectTrigger id="siteId">
                       <SelectValue>
                         {(raw) => {

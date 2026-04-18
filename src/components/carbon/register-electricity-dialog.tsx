@@ -73,6 +73,10 @@ export function RegisterElectricityDialog({ sites }: { sites: Site[] }) {
           <DialogTitle>Register Electricity</DialogTitle>
         </DialogHeader>
         <form action={action}>
+          {/* Hidden inputs mirror the controlled Select state — see the
+              fuel dialog for the rationale. */}
+          <input type="hidden" name="region" value={region} />
+          <input type="hidden" name="siteId" value={siteId} />
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="kwh">kWh</FieldLabel>
@@ -121,7 +125,6 @@ export function RegisterElectricityDialog({ sites }: { sites: Site[] }) {
               <Field>
                 <FieldLabel htmlFor="region">Grid Region</FieldLabel>
                 <Select
-                  name="region"
                   value={region}
                   onValueChange={(v) => setRegion(String(v ?? "EU"))}
                 >
@@ -147,7 +150,7 @@ export function RegisterElectricityDialog({ sites }: { sites: Site[] }) {
               <Field>
                 <FieldLabel htmlFor="siteId">Plant / Location</FieldLabel>
                 {sites.length > 0 ? (
-                  <Select name="siteId" value={siteId} onValueChange={(v) => setSiteId(String(v ?? ""))}>
+                  <Select value={siteId} onValueChange={(v) => setSiteId(String(v ?? ""))}>
                     <SelectTrigger id="siteId">
                       <SelectValue>
                         {(raw) => {
