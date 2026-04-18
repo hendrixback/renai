@@ -24,14 +24,11 @@ export function LoginForm({
 
   return (
     <div className={cn("flex flex-col gap-8", className)} {...props}>
-      <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="font-display text-5xl font-semibold tracking-tight leading-[1.05]">
-          Welcome to{" "}
-          <span className="bg-gradient-to-br from-primary via-primary to-emerald-400 bg-clip-text text-transparent">
-            RenAI
-          </span>
+      <div className="flex flex-col items-center gap-3 text-center">
+        <h1 className="font-display bg-gradient-to-b from-white via-white to-emerald-200/90 bg-clip-text text-7xl font-bold tracking-tight text-transparent leading-none drop-shadow-[0_4px_32px_rgba(96,187,115,0.35)]">
+          RenAI
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Sign in to your workspace
         </p>
       </div>
