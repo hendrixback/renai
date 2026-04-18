@@ -212,9 +212,9 @@
   }
 }
 
-.animate-morph-1 { animation: morph-1 28s ease-in-out infinite; will-change: transform, border-radius; }
-.animate-morph-2 { animation: morph-2 34s ease-in-out infinite; will-change: transform, border-radius; }
-.animate-morph-3 { animation: morph-3 40s ease-in-out infinite; will-change: transform, border-radius; }
-.animate-morph-4 { animation: morph-4 32s ease-in-out infinite; will-change: transform, border-radius; }
-.animate-morph-5 { animation: morph-5 26s ease-in-out infinite; will-change: transform, border-radius; }
-.animate-morph-6 { animation: morph-6 30s ease-in-out infinite; will-change: transform, border-radius; }
+.animate-morph-1 { animation: morph-1 11s ease-in-out infinite; will-change: transform, border-radius; }
+.animate-morph-2 { animation: morph-2 14s ease-in-out infinite; will-change: transform, border-radius; }
+.animate-morph-3 { animation: morph-3 16s ease-in-out infinite; will-change: transform, border-radius; }
+.animate-morph-4 { animation: morph-4 13s ease-in-out infinite; will-change: transform, border-radius; }
+.animate-morph-5 { animation: morph-5 10s ease-in-out infinite; will-change: transform, border-radius; }
+.animate-morph-6 { animation: morph-6 12s ease-in-out infinite; will-change: transform, border-radius; }
