@@ -1,0 +1,228 @@
+// Prisma schema — edit to model your domain. Migrations live in prisma/migrations.
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Identity & Tenancy ──────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  role         UserRole @default(MEMBER) // platform-level; see Membership for per-company roles
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships       Membership[]
+  createdWasteFlows WasteFlow[]  @relation("WasteFlowCreatedBy")
+
+  @@index([role])
+}
+
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  vatNumber String?
+  country   String?  @db.VarChar(2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  sites       Site[]
+  wasteFlows  WasteFlow[]
+}
+
+model Membership {
+  id        String         @id @default(cuid())
+  userId    String
+  companyId String
+  role      MembershipRole @default(MEMBER)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+model Site {
+  id           String   @id @default(cuid())
+  companyId    String
+  name         String
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  region       String?
+  country      String?  @db.VarChar(2)
+  postalCode   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  wasteFlows WasteFlow[]
+
+  @@index([companyId])
+}
+
+// ─── LoW / EWC Reference Catalog (seeded, read-only) ─────────────
+
+model WasteCode {
+  code           String  @id // "150101" — stable key, no spaces
+  displayCode    String // "15 01 01" — human format
+  description    String
+  chapterCode    String  @db.VarChar(2) // "15"
+  subChapterCode String  @db.VarChar(4) // "1501"
+  isHazardous    Boolean @default(false) // * marker in LoW
+  isMirrorEntry  Boolean @default(false) // haz/non-haz twin
+  catalogVersion String // "2014/955/EU"
+
+  wasteFlows WasteFlow[]
+
+  @@index([chapterCode])
+  @@index([subChapterCode])
+  @@index([isHazardous])
+}
+
+// Material-type groupings (UI filter layer above LoW codes)
+model WasteCategory {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String?
+  sortOrder   Int     @default(0)
+
+  wasteFlows WasteFlow[]
+}
+
+// ─── Core: WasteFlow ─────────────────────────────────────────────
+
+model WasteFlow {
+  id          String  @id @default(cuid())
+  companyId   String
+  siteId      String?
+  categoryId  String?
+  wasteCodeId String?
+
+  // General Information
+  name                String
+  description         String?
+  materialComposition String?
+  status              WasteFlowStatus @default(ACTIVE)
+
+  // Quantities & Frequency
+  estimatedQuantity Decimal?     @db.Decimal(14, 3)
+  quantityUnit      QuantityUnit @default(TON)
+  frequency         Frequency    @default(MONTHLY)
+
+  // Operations
+  storageMethod      String?
+  currentDestination String?
+  currentOperator    String?
+  locationName       String?
+  internalCode       String?
+  treatmentCode      TreatmentCode?
+  treatmentNotes     String?
+
+  // Additional
+  recoveryNotes String?
+  notes         String?
+  isHazardous   Boolean @default(false)
+  isPriority    Boolean @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+
+  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  site      Site?          @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  category  WasteCategory? @relation(fields: [categoryId], references: [id])
+  wasteCode WasteCode?     @relation(fields: [wasteCodeId], references: [code])
+  createdBy User?          @relation("WasteFlowCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status])
+  @@index([siteId])
+  @@index([categoryId])
+  @@index([wasteCodeId])
+  @@index([isHazardous])
+  @@index([isPriority])
+  @@index([createdAt])
+}
+
+enum WasteFlowStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum QuantityUnit {
+  KG
+  TON
+  LITER
+  CUBIC_METER
+  UNIT
+  PIECE
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  ONE_OFF
+  CONTINUOUS
+}
+
+enum TreatmentCode {
+  R1
+  R2
+  R3
+  R4
+  R5
+  R6
+  R7
+  R8
+  R9
+  R10
+  R11
+  R12
+  R13
+  D1
+  D2
+  D3
+  D4
+  D5
+  D6
+  D7
+  D8
+  D9
+  D10
+  D11
+  D12
+  D13
+  D14
+  D15
+}

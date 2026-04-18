@@ -1,0 +1,120 @@
+import "dotenv/config";
+
+import { PrismaPg } from "@prisma/adapter-pg";
+import bcrypt from "bcryptjs";
+
+import { PrismaClient } from "../src/generated/prisma/client";
+import { wasteCategories } from "./seeds/waste-categories";
+import { wasteCodes, CATALOG_VERSION } from "./seeds/waste-codes";
+
+const connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error("DATABASE_URL (or DIRECT_URL) is not set");
+}
+
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString }),
+});
+
+async function seedCatalog() {
+  // WasteCategory — idempotent upsert on slug.
+  for (const c of wasteCategories) {
+    await prisma.wasteCategory.upsert({
+      where: { slug: c.slug },
+      create: c,
+      update: {
+        name: c.name,
+        description: c.description,
+        sortOrder: c.sortOrder,
+      },
+    });
+  }
+  console.log(`✓ Seeded ${wasteCategories.length} waste categories`);
+
+  // WasteCode — idempotent upsert on code (primary key).
+  for (const w of wasteCodes) {
+    await prisma.wasteCode.upsert({
+      where: { code: w.code },
+      create: { ...w, catalogVersion: CATALOG_VERSION },
+      update: {
+        displayCode: w.displayCode,
+        description: w.description,
+        chapterCode: w.chapterCode,
+        subChapterCode: w.subChapterCode,
+        isHazardous: w.isHazardous,
+        isMirrorEntry: w.isMirrorEntry,
+        catalogVersion: CATALOG_VERSION,
+      },
+    });
+  }
+  console.log(`✓ Seeded ${wasteCodes.length} waste codes (${CATALOG_VERSION})`);
+}
+
+async function seedAdminAndCompany() {
+  const email = "admin@renai.local";
+  const password = "admin12345";
+  const companySlug = "renai-demo";
+
+  const user = await prisma.user.upsert({
+    where: { email },
+    create: {
+      email,
+      name: "Admin",
+      role: "ADMIN",
+      passwordHash: await bcrypt.hash(password, 10),
+    },
+    update: {},
+  });
+
+  const company = await prisma.company.upsert({
+    where: { slug: companySlug },
+    create: {
+      slug: companySlug,
+      name: "Renai Demo Co.",
+      country: "PT",
+    },
+    update: {},
+  });
+
+  await prisma.membership.upsert({
+    where: { userId_companyId: { userId: user.id, companyId: company.id } },
+    create: {
+      userId: user.id,
+      companyId: company.id,
+      role: "OWNER",
+    },
+    update: {},
+  });
+
+  // Default site so the WasteFlow form has something to select.
+  const existingSite = await prisma.site.findFirst({
+    where: { companyId: company.id, name: "Main Plant" },
+  });
+  if (!existingSite) {
+    await prisma.site.create({
+      data: {
+        companyId: company.id,
+        name: "Main Plant",
+        city: "Lisbon",
+        country: "PT",
+      },
+    });
+  }
+
+  console.log(`✓ Admin: ${email} / ${password}`);
+  console.log(`✓ Company: ${company.name} (${company.slug})`);
+}
+
+async function main() {
+  await seedCatalog();
+  await seedAdminAndCompany();
+}
+
+main()
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

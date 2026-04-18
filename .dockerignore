@@ -1,0 +1,29 @@
+.git
+.gitignore
+.github
+.claude
+.vscode
+.idea
+
+# Node / build artefacts
+node_modules
+.next
+out
+dist
+coverage
+.turbo
+
+# Env / secrets — use Railway variables, never bake into image
+.env
+.env.local
+.env.*.local
+
+# Local dev only
+docker-compose.yml
+docker-compose.*.yml
+
+# Docs that would only bloat the image
+README.md
+DEPLOY.md
+*.log
+.DS_Store

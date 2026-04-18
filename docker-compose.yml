@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: renai-postgres
+    environment:
+      POSTGRES_USER: renai
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-renai_dev}
+      POSTGRES_DB: renai
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U renai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

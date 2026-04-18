@@ -1,0 +1,13 @@
+# Railway service config. Uses the Dockerfile at repo root.
+# Postgres is attached as a plugin in the Railway project and its
+# DATABASE_URL is injected automatically into this service's env.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/login"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
