@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 const COOKIE_NAME = "renai_session";
+const ACTIVE_COMPANY_COOKIE = "renai_active_company";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 function getSecret(): string {
@@ -42,6 +43,7 @@ export async function createSession(userId: string): Promise<void> {
 export async function destroySession(): Promise<void> {
   const store = await cookies();
   store.delete(COOKIE_NAME);
+  store.delete(ACTIVE_COMPANY_COOKIE);
 }
 
 export async function readSession(): Promise<{ userId: string } | null> {
@@ -59,4 +61,27 @@ export async function readSession(): Promise<{ userId: string } | null> {
   if (!Number.isFinite(expires) || expires < Date.now()) return null;
 
   return { userId };
+}
+
+// ─── Active company (workspace switcher / admin "view as") ─────────
+
+export async function setActiveCompany(companyId: string): Promise<void> {
+  const store = await cookies();
+  store.set(ACTIVE_COMPANY_COOKIE, companyId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: MAX_AGE_SECONDS,
+  });
+}
+
+export async function clearActiveCompany(): Promise<void> {
+  const store = await cookies();
+  store.delete(ACTIVE_COMPANY_COOKIE);
+}
+
+export async function readActiveCompany(): Promise<string | null> {
+  const store = await cookies();
+  return store.get(ACTIVE_COMPANY_COOKIE)?.value ?? null;
 }

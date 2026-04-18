@@ -21,8 +21,10 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  memberships       Membership[]
-  createdWasteFlows WasteFlow[]  @relation("WasteFlowCreatedBy")
+  memberships            Membership[]
+  createdWasteFlows      WasteFlow[]  @relation("WasteFlowCreatedBy")
+  invitationsSent        Invitation[] @relation("InvitationInviter")
+  invitationsAccepted    Invitation[] @relation("InvitationAcceptee")
 
   @@index([role])
 }
@@ -44,6 +46,28 @@ model Company {
   memberships Membership[]
   sites       Site[]
   wasteFlows  WasteFlow[]
+  invitations Invitation[]
+}
+
+model Invitation {
+  id               String         @id @default(cuid())
+  companyId        String
+  email            String
+  role             MembershipRole @default(MEMBER)
+  token            String         @unique
+  expiresAt        DateTime
+  invitedById      String
+  acceptedAt       DateTime?
+  acceptedByUserId String?
+  createdAt        DateTime       @default(now())
+
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invitedBy  User    @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+  acceptedBy User?   @relation("InvitationAcceptee", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([email])
+  @@index([expiresAt])
 }
 
 model Membership {

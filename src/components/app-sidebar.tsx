@@ -5,23 +5,30 @@ import {
   BarChart3Icon,
   CoinsIcon,
   FileTextIcon,
-  GalleryVerticalEndIcon,
   LayoutDashboardIcon,
   LeafIcon,
   RecycleIcon,
   SettingsIcon,
+  ShieldIcon,
 } from "lucide-react"
 
+import { CompanySwitcher } from "@/components/company-switcher"
 import { NavMain, type NavItem } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
-import { TeamSwitcher } from "@/components/team-switcher"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
   SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 
 type AppSidebarUser = {
   id: string
@@ -30,13 +37,11 @@ type AppSidebarUser = {
   role: "ADMIN" | "MEMBER"
 }
 
-const teams = [
-  {
-    name: "Renai",
-    logo: <GalleryVerticalEndIcon />,
-    plan: "Starter",
-  },
-]
+type SidebarCompany = {
+  id: string
+  name: string
+  role: string
+}
 
 const navMain: NavItem[] = [
   { title: "Dashboard", url: "/dashboard", icon: <LayoutDashboardIcon /> },
@@ -54,15 +59,62 @@ const navMain: NavItem[] = [
 
 export function AppSidebar({
   user,
+  companies,
+  activeCompany,
+  isImpersonating,
   ...props
-}: { user: AppSidebarUser } & React.ComponentProps<typeof Sidebar>) {
+}: {
+  user: AppSidebarUser
+  companies: SidebarCompany[]
+  activeCompany: SidebarCompany
+  isImpersonating: boolean
+} & React.ComponentProps<typeof Sidebar>) {
+  const pathname = usePathname()
+  const showAdminLink = user.role === "ADMIN"
+  const adminActive = pathname.startsWith("/admin")
+
+  // When impersonating, show the active company in the switcher list too so
+  // the user can see and exit — the "exit" button in the impersonation
+  // banner is the primary control, but having it in the list is helpful.
+  const switcherCompanies = React.useMemo(() => {
+    const list = companies.map((c) => ({ ...c }))
+    if (
+      isImpersonating &&
+      !list.some((c) => c.id === activeCompany.id)
+    ) {
+      list.unshift({ ...activeCompany })
+    }
+    return list
+  }, [companies, activeCompany, isImpersonating])
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={teams} />
+        <CompanySwitcher
+          companies={switcherCompanies}
+          activeId={activeCompany.id}
+          isImpersonating={isImpersonating}
+        />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMain} />
+        {showAdminLink ? (
+          <SidebarGroup>
+            <SidebarGroupLabel>Platform</SidebarGroupLabel>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Platform Admin"
+                  isActive={adminActive}
+                  render={<Link href="/admin" />}
+                >
+                  <ShieldIcon />
+                  <span>Platform Admin</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        ) : null}
       </SidebarContent>
       <SidebarFooter>
         <NavUser

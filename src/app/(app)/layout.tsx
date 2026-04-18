@@ -2,12 +2,13 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { AppSidebar } from "@/components/app-sidebar";
+import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentContext, getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardLayout({
+export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -18,19 +19,45 @@ export default async function DashboardLayout({
     redirect("/login?from=/dashboard");
   }
 
+  const ctx = await getCurrentContext();
+
+  if (!ctx) {
+    // Platform admin with no memberships → send them to the admin area
+    // where they can pick a company to view.
+    if (user.role === "ADMIN") redirect("/admin");
+    // Regular user without any company access — rare edge case.
+    redirect("/login?error=no-company");
+  }
+
   const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
 
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
       <AppSidebar
         user={{
-          id: user.id,
-          name: user.name ?? user.email,
-          email: user.email,
-          role: user.role,
+          id: ctx.user.id,
+          name: ctx.user.name ?? ctx.user.email,
+          email: ctx.user.email,
+          role: ctx.user.role,
         }}
+        companies={ctx.memberships.map((m) => ({
+          id: m.id,
+          name: m.name,
+          role: m.role,
+        }))}
+        activeCompany={{
+          id: ctx.company.id,
+          name: ctx.company.name,
+          role: ctx.company.role,
+        }}
+        isImpersonating={ctx.isImpersonating}
       />
-      <SidebarInset>{children}</SidebarInset>
+      <SidebarInset>
+        {ctx.isImpersonating ? (
+          <ImpersonationBanner companyName={ctx.company.name} />
+        ) : null}
+        {children}
+      </SidebarInset>
     </SidebarProvider>
   );
 }
