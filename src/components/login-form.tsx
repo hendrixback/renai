@@ -82,7 +82,7 @@ export function LoginForm({
           <Button
             type="submit"
             disabled={isPending}
-            className="h-11 w-full bg-gradient-to-b from-white via-white to-emerald-200/90 text-base font-medium text-neutral-900 shadow-[0_4px_32px_rgba(96,187,115,0.25)] transition-[filter] hover:brightness-105 hover:from-white hover:via-white hover:to-emerald-200/90"
+            className="h-11 w-full bg-white text-base font-medium text-neutral-900 shadow-[0_4px_32px_rgba(96,187,115,0.25)] transition-[filter] hover:bg-white hover:brightness-105"
           >
             {isPending ? (
               <>
