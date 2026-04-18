@@ -41,7 +41,16 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Prisma CLI + engines for running migrations at container startup.
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+COPY --from=deps /app/node_modules/prisma ./node_modules/prisma
+COPY --from=deps /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
+COPY --from=deps /app/node_modules/@prisma/engines-version ./node_modules/@prisma/engines-version
+COPY --from=deps /app/node_modules/@prisma/config ./node_modules/@prisma/config
+COPY --from=deps /app/node_modules/dotenv ./node_modules/dotenv
+
 USER nextjs
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node server.js"]

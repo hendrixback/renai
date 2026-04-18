@@ -144,21 +144,23 @@ export async function removeMember(membershipId: string) {
   const ctx = await getCurrentContext();
   if (!ctx || !canManageTeam(ctx.company.role)) return;
 
-  // Don't let the last OWNER remove themselves / another owner if it'd
-  // leave the company ownerless.
   const target = await prisma.membership.findUnique({
     where: { id: membershipId },
     select: { companyId: true, role: true, userId: true },
   });
   if (!target || target.companyId !== ctx.company.id) return;
 
-  if (target.role === "OWNER") {
-    const ownerCount = await prisma.membership.count({
-      where: { companyId: ctx.company.id, role: "OWNER" },
-    });
-    if (ownerCount <= 1) return;
-  }
+  await prisma.$transaction(async (tx) => {
+    if (target.role === "OWNER") {
+      const ownerCount = await tx.membership.count({
+        where: { companyId: ctx.company.id, role: "OWNER" },
+      });
+      if (ownerCount <= 1) {
+        throw new Error("Cannot remove the last owner");
+      }
+    }
+    await tx.membership.delete({ where: { id: membershipId } });
+  });
 
-  await prisma.membership.delete({ where: { id: membershipId } });
   revalidatePath("/settings/team");
 }

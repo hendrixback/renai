@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { getCurrentContext } from "@/lib/auth";
@@ -23,7 +23,6 @@ const emptyToUndef = (v: unknown) =>
 
 function monthDate(raw: unknown): Date | null {
   if (typeof raw !== "string" || !raw) return null;
-  // HTML <input type="month"> → "YYYY-MM"; type="date" → "YYYY-MM-DD"
   const match = raw.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?/);
   if (!match) return null;
   const y = Number(match[1]);
@@ -48,24 +47,14 @@ const fuelSchema = z.object({
 });
 
 export async function registerFuelEntry(
-  _prev: SimpleState | null,
-  formData: FormData,
+  data: Record<string, string>,
 ): Promise<SimpleState> {
   const ctx = await getCurrentContext();
   if (!ctx) {
     return { error: "Not authenticated", success: null, fieldErrors: {} };
   }
 
-  const parsed = fuelSchema.safeParse({
-    fuelType: formData.get("fuelType"),
-    unit: formData.get("unit"),
-    quantity: formData.get("quantity"),
-    month: formData.get("month"),
-    siteId: formData.get("siteId"),
-    locationName: formData.get("locationName"),
-    region: formData.get("region"),
-    notes: formData.get("notes"),
-  });
+  const parsed = fuelSchema.safeParse(data);
   if (!parsed.success) {
     return {
       error: null,
@@ -123,7 +112,8 @@ export async function registerFuelEntry(
     },
   });
 
-  revalidatePath("/carbon-footprint");
+  revalidatePath("/carbon-footprint", "layout");
+  refresh();
   return {
     error: null,
     success: `Registered (${emission.kgCo2e.toFixed(1)} kgCO₂e).`,
@@ -137,7 +127,8 @@ export async function deleteFuelEntry(id: string) {
   await prisma.fuelEntry.deleteMany({
     where: { id, companyId: ctx.company.id },
   });
-  revalidatePath("/carbon-footprint");
+  revalidatePath("/carbon-footprint", "layout");
+  refresh();
 }
 
 // ─── Electricity ───────────────────────────────────────────────────
@@ -160,24 +151,14 @@ const electricitySchema = z.object({
 });
 
 export async function registerElectricityEntry(
-  _prev: SimpleState | null,
-  formData: FormData,
+  data: Record<string, string>,
 ): Promise<SimpleState> {
   const ctx = await getCurrentContext();
   if (!ctx) {
     return { error: "Not authenticated", success: null, fieldErrors: {} };
   }
 
-  const parsed = electricitySchema.safeParse({
-    kwh: formData.get("kwh"),
-    month: formData.get("month"),
-    renewablePercent: formData.get("renewablePercent"),
-    energyProvider: formData.get("energyProvider"),
-    siteId: formData.get("siteId"),
-    locationName: formData.get("locationName"),
-    region: formData.get("region"),
-    notes: formData.get("notes"),
-  });
+  const parsed = electricitySchema.safeParse(data);
   if (!parsed.success) {
     return {
       error: null,
@@ -234,7 +215,8 @@ export async function registerElectricityEntry(
     },
   });
 
-  revalidatePath("/carbon-footprint");
+  revalidatePath("/carbon-footprint", "layout");
+  refresh();
   return {
     error: null,
     success: `Registered (${emission.kgCo2e.toFixed(1)} kgCO₂e).`,
@@ -248,5 +230,6 @@ export async function deleteElectricityEntry(id: string) {
   await prisma.electricityEntry.deleteMany({
     where: { id, companyId: ctx.company.id },
   });
-  revalidatePath("/carbon-footprint");
+  revalidatePath("/carbon-footprint", "layout");
+  refresh();
 }

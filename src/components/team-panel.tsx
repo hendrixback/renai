@@ -20,6 +20,16 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
   Field,
   FieldGroup,
   FieldLabel,
@@ -81,6 +91,117 @@ function RoleBadge({ role }: { role: string }) {
   return <Badge variant={variant}>{role.toLowerCase()}</Badge>
 }
 
+function RemoveMemberButton({ memberId, email }: { memberId: string; email: string }) {
+  const [open, setOpen] = React.useState(false)
+  const [pending, startTransition] = useTransition()
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Remove member"
+          />
+        }
+      >
+        <XIcon className="size-4" />
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Remove team member</DialogTitle>
+          <DialogDescription>
+            Remove <span className="font-medium text-foreground">{email}</span> from
+            the team? They will lose access immediately.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" />}>
+            Cancel
+          </DialogClose>
+          <Button
+            variant="destructive"
+            disabled={pending}
+            onClick={() => {
+              startTransition(async () => {
+                await removeMember(memberId)
+                setOpen(false)
+              })
+            }}
+          >
+            {pending ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Removing…
+              </>
+            ) : (
+              "Remove"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function RevokeInvitationButton({ invitationId, email }: { invitationId: string; email: string }) {
+  const [open, setOpen] = React.useState(false)
+  const [pending, startTransition] = useTransition()
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Revoke invitation"
+          />
+        }
+      >
+        <XIcon className="size-4" />
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Revoke invitation</DialogTitle>
+          <DialogDescription>
+            Revoke the invite for{" "}
+            <span className="font-medium text-foreground">{email}</span>? The
+            invite link will no longer work.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" />}>
+            Cancel
+          </DialogClose>
+          <Button
+            variant="destructive"
+            disabled={pending}
+            onClick={() => {
+              startTransition(async () => {
+                await revokeInvitation(invitationId)
+                setOpen(false)
+              })
+            }}
+          >
+            {pending ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Revoking…
+              </>
+            ) : (
+              "Revoke"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function InviteUrlBlock({ url }: { url: string }) {
   const [copied, setCopied] = React.useState(false)
 
@@ -140,8 +261,6 @@ export function TeamPanel({
     inviteTeammate,
     initial,
   )
-  const [revokePending, startRevoke] = useTransition()
-  const [removePending, startRemove] = useTransition()
   const [role, setRole] = React.useState<string>("MEMBER")
   const formRef = React.useRef<HTMLFormElement>(null)
 
@@ -289,24 +408,7 @@ export function TeamPanel({
                     {canManage ? (
                       <TableCell className="text-right">
                         {!isSelf ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label="Remove member"
-                            disabled={removePending}
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  `Remove ${m.email} from the team?`,
-                                )
-                              ) {
-                                startRemove(() => removeMember(m.id))
-                              }
-                            }}
-                          >
-                            <XIcon className="size-4" />
-                          </Button>
+                          <RemoveMemberButton memberId={m.id} email={m.email} />
                         ) : null}
                       </TableCell>
                     ) : null}
@@ -350,22 +452,7 @@ export function TeamPanel({
                     </TableCell>
                     {canManage ? (
                       <TableCell className="text-right">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="Revoke invitation"
-                          disabled={revokePending}
-                          onClick={() => {
-                            if (
-                              window.confirm(`Revoke invite for ${i.email}?`)
-                            ) {
-                              startRevoke(() => revokeInvitation(i.id))
-                            }
-                          }}
-                        >
-                          <XIcon className="size-4" />
-                        </Button>
+                        <RevokeInvitationButton invitationId={i.id} email={i.email} />
                       </TableCell>
                     ) : null}
                   </TableRow>

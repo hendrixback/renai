@@ -1,12 +1,9 @@
 "use client"
 
 import {
-  BadgeCheckIcon,
-  BellIcon,
   ChevronsUpDownIcon,
-  CreditCardIcon,
   LogOutIcon,
-  SparklesIcon,
+  SettingsIcon,
 } from "lucide-react"
 
 import { logout } from "@/app/login/actions"
@@ -91,24 +88,11 @@ export function NavUser({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <SparklesIcon />
-                Upgrade to Pro
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <BadgeCheckIcon />
-                Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCardIcon />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <BellIcon />
-                Notifications
+              <DropdownMenuItem
+                render={<a href="/settings/account" />}
+              >
+                <SettingsIcon />
+                Settings
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

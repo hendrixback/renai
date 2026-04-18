@@ -1,7 +1,6 @@
 "use client"
 
-import * as React from "react"
-import { useActionState } from "react"
+import { useState, useTransition } from "react"
 import { Loader2, PlusIcon } from "lucide-react"
 
 import {
@@ -25,17 +24,13 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 
 type Site = { id: string; name: string }
 
-const initial: SimpleState = { error: null, success: null, fieldErrors: {} }
+const emptyState: SimpleState = { error: null, success: null, fieldErrors: {} }
+
+const selectClass =
+  "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
 
 function FieldError({ errors }: { errors?: string[] }) {
   if (!errors?.length) return null
@@ -43,23 +38,61 @@ function FieldError({ errors }: { errors?: string[] }) {
 }
 
 export function RegisterElectricityDialog({ sites }: { sites: Site[] }) {
-  const [open, setOpen] = React.useState(false)
-  const [state, action, pending] = useActionState(
-    registerElectricityEntry,
-    initial,
-  )
-  const [region, setRegion] = React.useState<string>("EU")
-  const [siteId, setSiteId] = React.useState<string>("")
+  const [open, setOpen] = useState(false)
+  const [state, setState] = useState<SimpleState>(emptyState)
+  const [pending, startTransition] = useTransition()
 
-  React.useEffect(() => {
-    if (state.success) {
-      const t = setTimeout(() => setOpen(false), 400)
-      return () => clearTimeout(t)
-    }
-  }, [state.success])
+  const [kwh, setKwh] = useState("")
+  const [month, setMonth] = useState("")
+  const [renewablePercent, setRenewablePercent] = useState("")
+  const [energyProvider, setEnergyProvider] = useState("")
+  const [region, setRegion] = useState("EU")
+  const [siteId, setSiteId] = useState("")
+  const [locationName, setLocationName] = useState("")
+  const [notes, setNotes] = useState("")
+
+  function resetForm() {
+    setKwh("")
+    setMonth("")
+    setRenewablePercent("")
+    setEnergyProvider("")
+    setRegion("EU")
+    setSiteId("")
+    setLocationName("")
+    setNotes("")
+    setState(emptyState)
+  }
+
+  function handleSubmit() {
+    startTransition(async () => {
+      const result = await registerElectricityEntry({
+        kwh,
+        month,
+        renewablePercent,
+        energyProvider,
+        region,
+        siteId,
+        locationName,
+        notes,
+      })
+      setState(result)
+      if (result.success) {
+        setTimeout(() => {
+          resetForm()
+          setOpen(false)
+        }, 400)
+      }
+    })
+  }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (next) resetForm()
+      }}
+    >
       <DialogTrigger
         render={
           <Button size="sm">
@@ -72,137 +105,136 @@ export function RegisterElectricityDialog({ sites }: { sites: Site[] }) {
         <DialogHeader>
           <DialogTitle>Register Electricity</DialogTitle>
         </DialogHeader>
-        <form action={action}>
-          {/* Hidden inputs mirror the controlled Select state — see the
-              fuel dialog for the rationale. */}
-          <input type="hidden" name="region" value={region} />
-          <input type="hidden" name="siteId" value={siteId} />
-          <FieldGroup>
+
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="kwh">kWh</FieldLabel>
+            <Input
+              id="kwh"
+              type="number"
+              step="0.001"
+              min="0"
+              placeholder="0"
+              value={kwh}
+              onChange={(e) => setKwh(e.target.value)}
+            />
+            <FieldError errors={state.fieldErrors.kwh} />
+          </Field>
+
+          <div className="grid gap-3 md:grid-cols-2">
             <Field>
-              <FieldLabel htmlFor="kwh">kWh</FieldLabel>
+              <FieldLabel htmlFor="month">Month</FieldLabel>
               <Input
-                id="kwh"
-                name="kwh"
-                type="number"
-                step="0.001"
-                min="0"
-                required
-                placeholder="0"
+                id="month"
+                type="month"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
               />
-              <FieldError errors={state.fieldErrors.kwh} />
+              <FieldError errors={state.fieldErrors.month} />
             </Field>
+            <Field>
+              <FieldLabel htmlFor="renewablePercent">Renewable %</FieldLabel>
+              <Input
+                id="renewablePercent"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                placeholder="0"
+                value={renewablePercent}
+                onChange={(e) => setRenewablePercent(e.target.value)}
+              />
+              <FieldError errors={state.fieldErrors.renewablePercent} />
+            </Field>
+          </div>
 
-            <div className="grid gap-3 md:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="month">Month</FieldLabel>
-                <Input id="month" name="month" type="month" required />
-                <FieldError errors={state.fieldErrors.month} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="renewablePercent">Renewable %</FieldLabel>
-                <Input
-                  id="renewablePercent"
-                  name="renewablePercent"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="100"
-                  placeholder="0"
-                />
-                <FieldError errors={state.fieldErrors.renewablePercent} />
-              </Field>
-            </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="energyProvider">Energy Provider</FieldLabel>
+              <Input
+                id="energyProvider"
+                placeholder="EDP, Galp..."
+                value={energyProvider}
+                onChange={(e) => setEnergyProvider(e.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="region">Grid Region</FieldLabel>
+              <select
+                id="region"
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+                className={selectClass}
+              >
+                {REGIONS.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
 
-            <div className="grid gap-3 md:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="energyProvider">Energy Provider</FieldLabel>
-                <Input
-                  id="energyProvider"
-                  name="energyProvider"
-                  placeholder="EDP, Galp..."
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="region">Grid Region</FieldLabel>
-                <Select
-                  value={region}
-                  onValueChange={(v) => setRegion(String(v ?? "EU"))}
+          <div className="grid gap-3 md:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="siteId">Plant / Location</FieldLabel>
+              {sites.length > 0 ? (
+                <select
+                  id="siteId"
+                  value={siteId}
+                  onChange={(e) => setSiteId(e.target.value)}
+                  className={selectClass}
                 >
-                  <SelectTrigger id="region">
-                    <SelectValue>
-                      {(raw) =>
-                        REGIONS.find((r) => r.value === (raw as string))?.label ?? "Region"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {REGIONS.map((r) => (
-                      <SelectItem key={r.value} value={r.value}>
-                        {r.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="siteId">Plant / Location</FieldLabel>
-                {sites.length > 0 ? (
-                  <Select value={siteId} onValueChange={(v) => setSiteId(String(v ?? ""))}>
-                    <SelectTrigger id="siteId">
-                      <SelectValue>
-                        {(raw) => {
-                          const v = (raw as string) || ""
-                          if (!v) return <span className="text-muted-foreground">Select site</span>
-                          return sites.find((s) => s.id === v)?.name ?? v
-                        }}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sites.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input name="locationName" placeholder="Plant..." />
-                )}
-                <FieldError errors={state.fieldErrors.siteId} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="notes">Notes</FieldLabel>
-                <Input id="notes" name="notes" placeholder="Optional" />
-              </Field>
-            </div>
-
-            {state.success ? (
-              <p className="text-sm text-emerald-600 dark:text-emerald-400">
-                ✓ {state.success}
-              </p>
-            ) : null}
-            {state.error ? (
-              <p className="text-sm text-destructive">{state.error}</p>
-            ) : null}
-          </FieldGroup>
-
-          <DialogFooter className="mt-6">
-            <DialogClose render={<Button variant="outline" disabled={pending}>Cancel</Button>} />
-            <Button type="submit" disabled={pending}>
-              {pending ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  Saving…
-                </>
+                  <option value="">Select site</option>
+                  {sites.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
               ) : (
-                "Add"
+                <Input
+                  placeholder="Plant..."
+                  value={locationName}
+                  onChange={(e) => setLocationName(e.target.value)}
+                />
               )}
-            </Button>
-          </DialogFooter>
-        </form>
+              <FieldError errors={state.fieldErrors.siteId} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="notes">Notes</FieldLabel>
+              <Input
+                id="notes"
+                placeholder="Optional"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </Field>
+          </div>
+
+          {state.success ? (
+            <p className="text-sm text-emerald-600 dark:text-emerald-400">
+              {state.success}
+            </p>
+          ) : null}
+          {state.error ? (
+            <p className="text-sm text-destructive">{state.error}</p>
+          ) : null}
+        </FieldGroup>
+
+        <DialogFooter className="mt-6">
+          <DialogClose render={<Button variant="outline" disabled={pending}>Cancel</Button>} />
+          <Button onClick={handleSubmit} disabled={pending}>
+            {pending ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Add"
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
