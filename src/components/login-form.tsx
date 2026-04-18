@@ -1,7 +1,9 @@
 "use client"
 
 import { useActionState } from "react"
-import { LeafIcon, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
+
+import { BrandMark } from "@/components/brand-mark"
 
 import { login, type LoginState } from "@/app/login/actions"
 import { cn } from "@/lib/utils"
@@ -25,8 +27,8 @@ export function LoginForm({
   return (
     <div className={cn("flex flex-col gap-8", className)} {...props}>
       <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
-          <LeafIcon className="size-6" />
+        <div className="flex size-12 items-center justify-center text-primary">
+          <BrandMark className="size-9" />
         </div>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
