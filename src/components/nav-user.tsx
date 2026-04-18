@@ -113,7 +113,10 @@ export function NavUser({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <form action={logout}>
-              <DropdownMenuItem render={<button type="submit" className="w-full" />}>
+              <DropdownMenuItem
+                nativeButton
+                render={<button type="submit" className="w-full" />}
+              >
                 <LogOutIcon />
                 Log out
               </DropdownMenuItem>
