@@ -2,7 +2,6 @@ import { redirect } from "next/navigation"
 
 import { LoginForm } from "@/components/login-form"
 import { LoginBackdrop } from "@/components/login-backdrop"
-import { ModeToggle } from "@/components/mode-toggle"
 import { getCurrentUser } from "@/lib/auth"
 
 export const dynamic = "force-dynamic"
@@ -21,13 +20,11 @@ export default async function LoginPage({
   const safeFrom =
     typeof from === "string" && from.startsWith("/") ? from : "/dashboard"
 
+  // Force dark mode on this route regardless of the user's app-wide
+  // theme choice — the animated backdrop was designed for dark.
   return (
-    <div className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden bg-background p-6 md:p-10">
+    <div className="dark relative flex min-h-svh flex-col items-center justify-center overflow-hidden bg-background p-6 md:p-10">
       <LoginBackdrop />
-
-      <div className="absolute top-4 right-4 z-10">
-        <ModeToggle />
-      </div>
 
       <div className="relative z-10 w-full max-w-sm">
         <LoginForm from={safeFrom} />
