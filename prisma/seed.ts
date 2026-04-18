@@ -4,6 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 
 import { PrismaClient } from "../src/generated/prisma/client";
+import { emissionFactors } from "./seeds/emission-factors";
 import { wasteCategories } from "./seeds/waste-categories";
 import { wasteCodes, CATALOG_VERSION } from "./seeds/waste-codes";
 
@@ -48,6 +49,42 @@ async function seedCatalog() {
     });
   }
   console.log(`✓ Seeded ${wasteCodes.length} waste codes (${CATALOG_VERSION})`);
+
+  // Emission factors — idempotent via findFirst + update/create (Prisma 7
+  // rejects null in composite-unique `where`, so we can't upsert directly
+  // when companyId is null).
+  for (const ef of emissionFactors) {
+    const existing = await prisma.emissionFactor.findFirst({
+      where: {
+        category: ef.category,
+        subtype: ef.subtype,
+        region: ef.region,
+        year: ef.year,
+        companyId: null,
+      },
+      select: { id: true },
+    });
+    const data = {
+      unit: ef.unit,
+      kgCo2ePerUnit: ef.kgCo2ePerUnit,
+      source: ef.source,
+      notes: ef.notes ?? null,
+    };
+    if (existing) {
+      await prisma.emissionFactor.update({ where: { id: existing.id }, data });
+    } else {
+      await prisma.emissionFactor.create({
+        data: {
+          category: ef.category,
+          subtype: ef.subtype,
+          region: ef.region,
+          year: ef.year,
+          ...data,
+        },
+      });
+    }
+  }
+  console.log(`✓ Seeded ${emissionFactors.length} emission factors`);
 }
 
 async function seedAdminAndCompany() {

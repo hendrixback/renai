@@ -43,10 +43,13 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships Membership[]
-  sites       Site[]
-  wasteFlows  WasteFlow[]
-  invitations Invitation[]
+  memberships       Membership[]
+  sites             Site[]
+  wasteFlows        WasteFlow[]
+  invitations       Invitation[]
+  fuelEntries       FuelEntry[]
+  electricityEntries ElectricityEntry[]
+  emissionFactors   EmissionFactor[]
 }
 
 model Invitation {
@@ -105,10 +108,94 @@ model Site {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  wasteFlows WasteFlow[]
+  company            Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  wasteFlows         WasteFlow[]
+  fuelEntries        FuelEntry[]
+  electricityEntries ElectricityEntry[]
 
   @@index([companyId])
+}
+
+// ─── Carbon accounting (Scope 1 / 2 / Waste) ─────────────────────
+
+model EmissionFactor {
+  id            String           @id @default(cuid())
+  category      EmissionCategory
+  subtype       String // "diesel", "petrol_gasoline", "grid_electricity_pt", "landfill_plastic", ...
+  unit          String // "L", "m3", "kWh", "kg", "ton"
+  kgCo2ePerUnit Decimal          @db.Decimal(14, 6)
+  source        String // e.g. "DEFRA 2024"
+  region        String?          @db.VarChar(16) // "PT", "EU", "GLOBAL", ...
+  year          Int
+  notes         String?
+  companyId     String? // null = global default; set = company override
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  company            Company?           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fuelEntries        FuelEntry[]
+  electricityEntries ElectricityEntry[]
+
+  @@unique([category, subtype, region, year, companyId])
+  @@index([category, subtype])
+}
+
+enum EmissionCategory {
+  FUEL
+  ELECTRICITY
+  WASTE_LANDFILL
+  WASTE_INCINERATION
+  WASTE_RECYCLING
+  WASTE_COMPOSTING
+  PRODUCTION
+  TRANSPORT
+  OTHER
+}
+
+model FuelEntry {
+  id               String   @id @default(cuid())
+  companyId        String
+  siteId           String?
+  fuelType         String // matches EmissionFactor.subtype: "diesel", "petrol", "natural_gas", ...
+  quantity         Decimal  @db.Decimal(14, 3)
+  unit             String // "L", "m3", "kg", "kWh"
+  month            DateTime // first day of the accounting month (UTC)
+  locationName     String?
+  emissionFactorId String?
+  kgCo2e           Decimal? @db.Decimal(14, 3) // snapshot at time of write
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  site           Site?           @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  emissionFactor EmissionFactor? @relation(fields: [emissionFactorId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, month])
+  @@index([siteId])
+}
+
+model ElectricityEntry {
+  id               String   @id @default(cuid())
+  companyId        String
+  siteId           String?
+  kwh              Decimal  @db.Decimal(14, 3)
+  month            DateTime
+  renewablePercent Decimal? @db.Decimal(5, 2) // 0.00–100.00
+  energyProvider   String?
+  locationName     String?
+  emissionFactorId String?
+  kgCo2e           Decimal? @db.Decimal(14, 3) // calculated: kwh * (1 - renewable/100) * factor
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  site           Site?           @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  emissionFactor EmissionFactor? @relation(fields: [emissionFactorId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, month])
+  @@index([siteId])
 }
 
 // ─── LoW / EWC Reference Catalog (seeded, read-only) ─────────────

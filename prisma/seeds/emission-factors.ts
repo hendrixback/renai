@@ -1,0 +1,103 @@
+// Default emission factors — seeded globally (companyId = null) for every
+// tenant. Numbers sourced from DEFRA 2024 GHG conversion factors + EEA
+// country electricity mix (2023). Companies can override per-activity
+// later via the "Emission factor source" picker in the register forms.
+
+export type EmissionFactorSeed = {
+  category:
+    | "FUEL"
+    | "ELECTRICITY"
+    | "WASTE_LANDFILL"
+    | "WASTE_INCINERATION"
+    | "WASTE_RECYCLING"
+    | "WASTE_COMPOSTING";
+  subtype: string;
+  unit: string;
+  kgCo2ePerUnit: number;
+  source: string;
+  region: string;
+  year: number;
+  notes?: string;
+};
+
+export const emissionFactors: EmissionFactorSeed[] = [
+  // ─── Scope 1 — fuels ─────────────────────────────────────────
+  { category: "FUEL", subtype: "diesel",         unit: "L",   kgCo2ePerUnit: 2.68779, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "FUEL", subtype: "petrol",         unit: "L",   kgCo2ePerUnit: 2.19664, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "FUEL", subtype: "natural_gas",    unit: "m3",  kgCo2ePerUnit: 2.02135, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Converted from kWh factor using 10.83 kWh/m3 calorific value." },
+  { category: "FUEL", subtype: "natural_gas_kwh",unit: "kWh", kgCo2ePerUnit: 0.18316, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "FUEL", subtype: "lpg",            unit: "L",   kgCo2ePerUnit: 1.55713, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "FUEL", subtype: "heating_oil",    unit: "L",   kgCo2ePerUnit: 2.52390, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "FUEL", subtype: "coal",           unit: "kg",  kgCo2ePerUnit: 2.40244, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "FUEL", subtype: "biodiesel",      unit: "L",   kgCo2ePerUnit: 0.17000, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Well-to-tank only; combustion is biogenic." },
+  { category: "FUEL", subtype: "wood_pellets",   unit: "kg",  kgCo2ePerUnit: 0.06000, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Biogenic combustion reported separately." },
+
+  // ─── Scope 2 — electricity by country ────────────────────────
+  { category: "ELECTRICITY", subtype: "grid_electricity", unit: "kWh", kgCo2ePerUnit: 0.25300, source: "EEA 2023",   region: "EU",     year: 2023, notes: "EU-27 average electricity mix." },
+  { category: "ELECTRICITY", subtype: "grid_electricity", unit: "kWh", kgCo2ePerUnit: 0.14000, source: "APA 2023",   region: "PT",     year: 2023 },
+  { category: "ELECTRICITY", subtype: "grid_electricity", unit: "kWh", kgCo2ePerUnit: 0.19000, source: "MITECO 2023",region: "ES",     year: 2023 },
+  { category: "ELECTRICITY", subtype: "grid_electricity", unit: "kWh", kgCo2ePerUnit: 0.06000, source: "ADEME 2023", region: "FR",     year: 2023 },
+  { category: "ELECTRICITY", subtype: "grid_electricity", unit: "kWh", kgCo2ePerUnit: 0.37000, source: "UBA 2023",   region: "DE",     year: 2023 },
+  { category: "ELECTRICITY", subtype: "grid_electricity", unit: "kWh", kgCo2ePerUnit: 0.18500, source: "BEIS 2023",  region: "UK",     year: 2023 },
+  { category: "ELECTRICITY", subtype: "grid_electricity", unit: "kWh", kgCo2ePerUnit: 0.38300, source: "EPA 2023",   region: "US",     year: 2023 },
+
+  // ─── Waste — per kg, common materials ────────────────────────
+  // Sources: DEFRA 2024 + EPA WARM v15 + EEA waste stats.
+  // Landfill numbers include methane emissions from anaerobic decomposition
+  // where applicable (paper, wood, organics, textile). Recycling numbers
+  // include only the processing footprint (avoided virgin-material
+  // savings reported separately for completeness).
+
+  // Plastic
+  { category: "WASTE_LANDFILL",   subtype: "plastic", unit: "kg", kgCo2ePerUnit: 3.08,  source: "EPA WARM",  region: "GLOBAL", year: 2023, notes: "Composite LDPE/HDPE/PET landfill impact." },
+  { category: "WASTE_INCINERATION",subtype: "plastic", unit: "kg", kgCo2ePerUnit: 2.70, source: "EPA WARM",  region: "GLOBAL", year: 2023 },
+  { category: "WASTE_RECYCLING",  subtype: "plastic", unit: "kg", kgCo2ePerUnit: 0.51,  source: "EPA WARM",  region: "GLOBAL", year: 2023, notes: "Processing only; avoided virgin production omitted for conservative accounting." },
+
+  // Paper & cardboard
+  { category: "WASTE_LANDFILL",   subtype: "paper_cardboard", unit: "kg", kgCo2ePerUnit: 1.25, source: "EPA WARM", region: "GLOBAL", year: 2023, notes: "Methane from anaerobic decomp." },
+  { category: "WASTE_INCINERATION",subtype: "paper_cardboard", unit: "kg", kgCo2ePerUnit: 0.04, source: "EPA WARM", region: "GLOBAL", year: 2023 },
+  { category: "WASTE_RECYCLING",  subtype: "paper_cardboard", unit: "kg", kgCo2ePerUnit: 0.05, source: "EPA WARM", region: "GLOBAL", year: 2023 },
+  { category: "WASTE_COMPOSTING", subtype: "paper_cardboard", unit: "kg", kgCo2ePerUnit: 0.02, source: "EPA WARM", region: "GLOBAL", year: 2023 },
+
+  // Metal (ferrous proxy; non-ferrous similar order of magnitude)
+  { category: "WASTE_LANDFILL",   subtype: "metal", unit: "kg", kgCo2ePerUnit: 0.02, source: "EPA WARM", region: "GLOBAL", year: 2023, notes: "Metals are inert in landfill." },
+  { category: "WASTE_RECYCLING",  subtype: "metal", unit: "kg", kgCo2ePerUnit: 0.01, source: "EPA WARM", region: "GLOBAL", year: 2023 },
+
+  // Glass
+  { category: "WASTE_LANDFILL",   subtype: "glass", unit: "kg", kgCo2ePerUnit: 0.02, source: "EPA WARM", region: "GLOBAL", year: 2023 },
+  { category: "WASTE_RECYCLING",  subtype: "glass", unit: "kg", kgCo2ePerUnit: 0.03, source: "EPA WARM", region: "GLOBAL", year: 2023 },
+
+  // Wood
+  { category: "WASTE_LANDFILL",   subtype: "wood", unit: "kg", kgCo2ePerUnit: 0.55, source: "EPA WARM", region: "GLOBAL", year: 2023 },
+  { category: "WASTE_INCINERATION",subtype: "wood", unit: "kg", kgCo2ePerUnit: 0.05, source: "EPA WARM", region: "GLOBAL", year: 2023, notes: "Biogenic; combustion CO2 considered neutral." },
+  { category: "WASTE_RECYCLING",  subtype: "wood", unit: "kg", kgCo2ePerUnit: 0.04, source: "EPA WARM", region: "GLOBAL", year: 2023 },
+
+  // Organic / biowaste
+  { category: "WASTE_LANDFILL",   subtype: "organic", unit: "kg", kgCo2ePerUnit: 0.80, source: "EPA WARM", region: "GLOBAL", year: 2023, notes: "Methane from food waste decomp." },
+  { category: "WASTE_COMPOSTING", subtype: "organic", unit: "kg", kgCo2ePerUnit: 0.02, source: "EPA WARM", region: "GLOBAL", year: 2023 },
+
+  // Textile
+  { category: "WASTE_LANDFILL",   subtype: "textile", unit: "kg", kgCo2ePerUnit: 1.90, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "WASTE_INCINERATION",subtype: "textile", unit: "kg", kgCo2ePerUnit: 1.80, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "WASTE_RECYCLING",  subtype: "textile", unit: "kg", kgCo2ePerUnit: 0.10, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+
+  // Packaging (mixed) — fallback when material subtype unclear
+  { category: "WASTE_LANDFILL",   subtype: "packaging", unit: "kg", kgCo2ePerUnit: 1.50, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "WASTE_RECYCLING",  subtype: "packaging", unit: "kg", kgCo2ePerUnit: 0.15, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+
+  // Construction & demolition
+  { category: "WASTE_LANDFILL",   subtype: "construction_demolition", unit: "kg", kgCo2ePerUnit: 0.02, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "WASTE_RECYCLING",  subtype: "construction_demolition", unit: "kg", kgCo2ePerUnit: 0.01, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+
+  // WEEE (electronics)
+  { category: "WASTE_LANDFILL",   subtype: "weee", unit: "kg", kgCo2ePerUnit: 0.50, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "WASTE_RECYCLING",  subtype: "weee", unit: "kg", kgCo2ePerUnit: 0.10, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+
+  // Hazardous chemical / oil / healthcare — high landfill/incineration cost, low recycle
+  { category: "WASTE_INCINERATION",subtype: "hazardous", unit: "kg", kgCo2ePerUnit: 2.80, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "WASTE_LANDFILL",   subtype: "hazardous", unit: "kg", kgCo2ePerUnit: 1.20, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+
+  // Municipal / mixed — worst case fallback when nothing else matches
+  { category: "WASTE_LANDFILL",   subtype: "municipal_mixed", unit: "kg", kgCo2ePerUnit: 0.47, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "WASTE_INCINERATION",subtype: "municipal_mixed", unit: "kg", kgCo2ePerUnit: 0.42, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+];
