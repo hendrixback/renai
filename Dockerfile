@@ -41,13 +41,18 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Prisma CLI (installed globally so all transitive deps are resolved)
-# plus schema + config for running migrations at container startup.
+# Prisma CLI installed locally — prisma.config.ts does
+# `import { defineConfig } from "prisma/config"` and `import "dotenv/config"`,
+# and Node resolves those from /app, not from the global install location.
+# Installing locally also pulls in all of prisma's transitive deps (@prisma/debug,
+# @prisma/config, @prisma/engines, …) without having to cherry-pick them.
+# dotenv is already present in /app/node_modules via the Next.js standalone trace.
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
-RUN npm install -g prisma@7.7.0
+RUN npm install --no-save --no-audit --no-fund prisma@7.7.0 \
+ && chown -R nextjs:nodejs /app/node_modules/prisma /app/node_modules/@prisma
 
 USER nextjs
 EXPOSE 3000
 
-CMD ["sh", "-c", "prisma migrate deploy && node server.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node server.js"]
