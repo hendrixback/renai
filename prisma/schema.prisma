@@ -13,20 +13,31 @@ datasource db {
 // ─── Identity & Tenancy ──────────────────────────────────────────
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   name         String?
   passwordHash String
-  role         UserRole @default(MEMBER) // platform-level; see Membership for per-company roles
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  role         UserRole  @default(MEMBER) // platform-level; see Membership for per-company roles
+  lastActiveAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  memberships            Membership[]
-  createdWasteFlows      WasteFlow[]  @relation("WasteFlowCreatedBy")
-  invitationsSent        Invitation[] @relation("InvitationInviter")
-  invitationsAccepted    Invitation[] @relation("InvitationAcceptee")
+  memberships               Membership[]
+  createdWasteFlows         WasteFlow[]        @relation("WasteFlowCreatedBy")
+  updatedWasteFlows         WasteFlow[]        @relation("WasteFlowUpdatedBy")
+  invitationsSent           Invitation[]       @relation("InvitationInviter")
+  invitationsAccepted       Invitation[]       @relation("InvitationAcceptee")
+  createdSites              Site[]             @relation("SiteCreatedBy")
+  updatedSites              Site[]             @relation("SiteUpdatedBy")
+  createdFuelEntries        FuelEntry[]        @relation("FuelEntryCreatedBy")
+  updatedFuelEntries        FuelEntry[]        @relation("FuelEntryUpdatedBy")
+  createdElectricityEntries ElectricityEntry[] @relation("ElectricityEntryCreatedBy")
+  updatedElectricityEntries ElectricityEntry[] @relation("ElectricityEntryUpdatedBy")
+  activityLogs              ActivityLog[]
+  importedFactorRevisions   FactorRevision[]   @relation("FactorRevisionImporter")
 
   @@index([role])
+  @@index([lastActiveAt])
 }
 
 enum UserRole {
@@ -35,21 +46,24 @@ enum UserRole {
 }
 
 model Company {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  vatNumber String?
-  country   String?  @db.VarChar(2)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  vatNumber    String?
+  country      String?  @db.VarChar(2)
+  baselineYear Int? // ESG baseline year for YoY comparison (CSRD/ISSB requirement)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  memberships       Membership[]
-  sites             Site[]
-  wasteFlows        WasteFlow[]
-  invitations       Invitation[]
-  fuelEntries       FuelEntry[]
+  memberships        Membership[]
+  sites              Site[]
+  wasteFlows         WasteFlow[]
+  invitations        Invitation[]
+  fuelEntries        FuelEntry[]
   electricityEntries ElectricityEntry[]
-  emissionFactors   EmissionFactor[]
+  emissionFactors    EmissionFactor[]
+  activityLogs       ActivityLog[]
+  factorRevisions    FactorRevision[]
 }
 
 model Invitation {
@@ -62,6 +76,7 @@ model Invitation {
   invitedById      String
   acceptedAt       DateTime?
   acceptedByUserId String?
+  revokedAt        DateTime?
   createdAt        DateTime       @default(now())
 
   company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -71,6 +86,7 @@ model Invitation {
   @@index([companyId])
   @@index([email])
   @@index([expiresAt])
+  @@index([revokedAt])
 }
 
 model Membership {
@@ -96,24 +112,30 @@ enum MembershipRole {
 }
 
 model Site {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   companyId    String
   name         String
   addressLine1 String?
   addressLine2 String?
   city         String?
   region       String?
-  country      String?  @db.VarChar(2)
+  country      String?   @db.VarChar(2)
   postalCode   String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdById  String?
+  updatedById  String?
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   company            Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy          User?              @relation("SiteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy          User?              @relation("SiteUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   wasteFlows         WasteFlow[]
   fuelEntries        FuelEntry[]
   electricityEntries ElectricityEntry[]
 
   @@index([companyId])
+  @@index([deletedAt])
 }
 
 // ─── Carbon accounting (Scope 1 / 2 / Waste) ─────────────────────
@@ -153,49 +175,75 @@ enum EmissionCategory {
 }
 
 model FuelEntry {
-  id               String   @id @default(cuid())
+  id               String       @id @default(cuid())
   companyId        String
   siteId           String?
   fuelType         String // matches EmissionFactor.subtype: "diesel", "petrol", "natural_gas", ...
-  quantity         Decimal  @db.Decimal(14, 3)
+  quantity         Decimal      @db.Decimal(14, 3)
   unit             String // "L", "m3", "kg", "kWh"
   month            DateTime // first day of the accounting month (UTC)
+  reportingYear    Int? // denormalised for fast YoY queries (derived from month)
+  reportingMonth   Int? // 1–12 (derived from month)
   locationName     String?
   emissionFactorId String?
-  kgCo2e           Decimal? @db.Decimal(14, 3) // snapshot at time of write
+  factorSnapshot   Json? // frozen factor metadata at write-time: {value, unit, source, region, year, version, type}
+  kgCo2e           Decimal?     @db.Decimal(14, 3) // snapshot at time of write
   notes            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  recordStatus     RecordStatus @default(ACTIVE)
+  createdById      String?
+  updatedById      String?
+  deletedAt        DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   site           Site?           @relation(fields: [siteId], references: [id], onDelete: SetNull)
   emissionFactor EmissionFactor? @relation(fields: [emissionFactorId], references: [id], onDelete: SetNull)
+  createdBy      User?           @relation("FuelEntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy      User?           @relation("FuelEntryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@index([companyId, month])
+  @@index([companyId, reportingYear])
+  @@index([companyId, reportingYear, reportingMonth])
   @@index([siteId])
+  @@index([recordStatus])
+  @@index([deletedAt])
 }
 
 model ElectricityEntry {
-  id               String   @id @default(cuid())
+  id               String       @id @default(cuid())
   companyId        String
   siteId           String?
-  kwh              Decimal  @db.Decimal(14, 3)
+  kwh              Decimal      @db.Decimal(14, 3)
   month            DateTime
-  renewablePercent Decimal? @db.Decimal(5, 2) // 0.00–100.00
+  reportingYear    Int? // denormalised for fast YoY queries
+  reportingMonth   Int? // 1–12
+  renewablePercent Decimal?     @db.Decimal(5, 2) // 0.00–100.00
   energyProvider   String?
   locationName     String?
   emissionFactorId String?
-  kgCo2e           Decimal? @db.Decimal(14, 3) // calculated: kwh * (1 - renewable/100) * factor
+  factorSnapshot   Json? // frozen factor metadata at write-time
+  kgCo2e           Decimal?     @db.Decimal(14, 3) // DEPRECATED: kept for backcompat; new code uses location/market fields (Phase 3 refactor)
   notes            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  recordStatus     RecordStatus @default(ACTIVE)
+  createdById      String?
+  updatedById      String?
+  deletedAt        DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   site           Site?           @relation(fields: [siteId], references: [id], onDelete: SetNull)
   emissionFactor EmissionFactor? @relation(fields: [emissionFactorId], references: [id], onDelete: SetNull)
+  createdBy      User?           @relation("ElectricityEntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy      User?           @relation("ElectricityEntryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@index([companyId, month])
+  @@index([companyId, reportingYear])
+  @@index([companyId, reportingYear, reportingMonth])
   @@index([siteId])
+  @@index([recordStatus])
+  @@index([deletedAt])
 }
 
 // ─── LoW / EWC Reference Catalog (seeded, read-only) ─────────────
@@ -263,23 +311,31 @@ model WasteFlow {
   isHazardous   Boolean @default(false)
   isPriority    Boolean @default(false)
 
+  reportingYear  Int? // denormalised for fast YoY queries
+  reportingMonth Int? // 1–12
+  deletedAt      DateTime?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   createdById String?
+  updatedById String?
 
   company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   site      Site?          @relation(fields: [siteId], references: [id], onDelete: SetNull)
   category  WasteCategory? @relation(fields: [categoryId], references: [id])
   wasteCode WasteCode?     @relation(fields: [wasteCodeId], references: [code])
   createdBy User?          @relation("WasteFlowCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?          @relation("WasteFlowUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@index([companyId, status])
+  @@index([companyId, reportingYear])
   @@index([siteId])
   @@index([categoryId])
   @@index([wasteCodeId])
   @@index([isHazardous])
   @@index([isPriority])
   @@index([createdAt])
+  @@index([deletedAt])
 }
 
 enum WasteFlowStatus {
@@ -336,4 +392,88 @@ enum TreatmentCode {
   D13
   D14
   D15
+}
+
+// ─── Audit Trail ─────────────────────────────────────────────────
+
+/// Company-scoped audit log of user and system actions.
+/// Written synchronously from every server action via logActivity() helper.
+/// Retention: 7 years for GDPR-compatible audit baseline.
+model ActivityLog {
+  id           String       @id @default(cuid())
+  companyId    String
+  userId       String? // nullable for system events (cron, data imports, etc.)
+  activityType ActivityType
+  module       String // "waste-flows", "scope-1", "scope-2", "documentation", "regulations", ...
+  recordId     String? // nullable for non-record events (login, logout)
+  description  String // human-readable summary shown in UI
+  metadata     Json? // structured diff, old/new values, related IDs
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime     @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([companyId, module, recordId])
+  @@index([companyId, userId, createdAt])
+  @@index([activityType])
+}
+
+enum ActivityType {
+  RECORD_CREATED
+  RECORD_UPDATED
+  RECORD_DELETED
+  RECORD_STATUS_CHANGED
+  DOCUMENT_UPLOADED
+  DOCUMENT_DOWNLOADED
+  DOCUMENT_DELETED
+  TASK_CREATED
+  TASK_ASSIGNED
+  TASK_STATUS_CHANGED
+  USER_INVITED
+  USER_INVITATION_REVOKED
+  USER_ROLE_CHANGED
+  USER_REMOVED
+  USER_LOGIN
+  USER_LOGOUT
+  USER_PASSWORD_CHANGED
+  REGULATION_UPDATED
+  EMISSION_FACTOR_IMPORTED
+  IMPERSONATION_STARTED
+  IMPERSONATION_ENDED
+  COMPANY_CREATED
+  COMPANY_UPDATED
+}
+
+// ─── Factor Versioning (ADR-008) ─────────────────────────────────
+
+/// Each import of a factor source (DEFRA 2025, EPA WARM v16, ...) creates
+/// one FactorRevision, which associates all EmissionFactor rows created in
+/// that import. Records snapshot the factor at write time (FuelEntry.factorSnapshot)
+/// so historical traceability is preserved even if factors are superseded.
+model FactorRevision {
+  id           String   @id @default(cuid())
+  companyId    String? // null = platform-wide import; set = company-specific override
+  source       String // "DEFRA", "EPA WARM", "EEA", ...
+  version      String // "2024", "v15", "2025-Q1", ...
+  factorCount  Int      @default(0)
+  importedById String?
+  notes        String?
+  importedAt   DateTime @default(now())
+
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  importedBy User?    @relation("FactorRevisionImporter", fields: [importedById], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, source, version])
+  @@index([source, version])
+}
+
+// ─── Record lifecycle ────────────────────────────────────────────
+
+enum RecordStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
 }
