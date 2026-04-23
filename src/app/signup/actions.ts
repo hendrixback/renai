@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
+import { logActivity } from "@/lib/activity/log-activity";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/session";
 
@@ -61,6 +63,9 @@ export async function signup(
   if (invitation.acceptedAt) {
     return { error: "This invite has already been used.", fieldErrors: {} };
   }
+  if (invitation.revokedAt) {
+    return { error: "This invite has been revoked.", fieldErrors: {} };
+  }
   if (invitation.expiresAt < new Date()) {
     return { error: "This invite has expired.", fieldErrors: {} };
   }
@@ -75,6 +80,7 @@ export async function signup(
   });
 
   let userId: string;
+  let wasNewUser = false;
   if (existing) {
     userId = existing.id;
   } else {
@@ -84,6 +90,7 @@ export async function signup(
       select: { id: true },
     });
     userId = created.id;
+    wasNewUser = true;
   }
 
   await prisma.$transaction([
@@ -104,7 +111,36 @@ export async function signup(
     }),
   ]);
 
+  // Activity log: attribute to the joining user, scoped to the company
+  // they joined. Uses RECORD_UPDATED on the invitation record — the
+  // invitation's lifecycle transitioned to "accepted". A dedicated
+  // USER_JOINED activity type can be added later without touching this
+  // call site (the description + module tagging already disambiguate).
+  await logActivity(
+    { user: { id: userId }, company: { id: invitation.companyId } },
+    {
+      type: "RECORD_UPDATED",
+      module: "team",
+      recordId: invitation.id,
+      description: `${email} joined the team as ${invitation.role}`,
+      metadata: {
+        email,
+        role: invitation.role,
+        wasNewUser,
+      },
+    },
+  );
+
   await createSession(userId);
+  logger.info("Signup via invitation", {
+    event: "auth.signup",
+    userId,
+    email,
+    companyId: invitation.companyId,
+    role: invitation.role,
+    wasNewUser,
+  });
+
   revalidatePath("/", "layout");
   redirect("/dashboard");
 }

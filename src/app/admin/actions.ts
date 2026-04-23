@@ -5,11 +5,13 @@ import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
+import { logActivity } from "@/lib/activity/log-activity";
 import { getCurrentUser, isPlatformAdmin } from "@/lib/auth";
 import {
   generateInvitationToken,
   invitationExpiry,
 } from "@/lib/invitations";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { setActiveCompany } from "@/lib/session";
 
@@ -24,7 +26,7 @@ function slugify(input: string): string {
     .toLowerCase()
     .trim()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 64);
@@ -97,7 +99,7 @@ export async function createCompanyAndInviteOwner(
   });
 
   const token = generateInvitationToken();
-  await prisma.invitation.create({
+  const invitation = await prisma.invitation.create({
     data: {
       companyId: company.id,
       email: parsed.data.ownerEmail,
@@ -106,6 +108,41 @@ export async function createCompanyAndInviteOwner(
       expiresAt: invitationExpiry(),
       invitedById: user.id,
     },
+    select: { id: true, email: true },
+  });
+
+  // Audit trail under the new company so its eventual Owner can see
+  // the provisioning event.
+  await logActivity(
+    { user: { id: user.id }, company: { id: company.id } },
+    {
+      type: "COMPANY_CREATED",
+      module: "admin",
+      recordId: company.id,
+      description: `Company "${company.name}" created by platform admin`,
+      metadata: {
+        slug: company.slug,
+        country: company.country,
+        ownerEmail: parsed.data.ownerEmail,
+        platformAdminId: user.id,
+      },
+    },
+  );
+  await logActivity(
+    { user: { id: user.id }, company: { id: company.id } },
+    {
+      type: "USER_INVITED",
+      module: "team",
+      recordId: invitation.id,
+      description: `Invited ${invitation.email} as OWNER`,
+      metadata: { email: invitation.email, role: "OWNER" },
+    },
+  );
+  logger.info("Admin created company + owner invite", {
+    event: "admin.company.created",
+    platformAdminId: user.id,
+    companyId: company.id,
+    ownerEmail: parsed.data.ownerEmail,
   });
 
   const origin =
@@ -126,11 +163,30 @@ export async function adminViewAs(companyId: string) {
 
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { id: true },
+    select: { id: true, name: true },
   });
   if (!company) return;
 
+  // Log to the target company so its Owner can see admin access in
+  // their own activity history. setActiveCompany happens after so that
+  // a failed logActivity doesn't grant a silent access.
+  await logActivity(
+    { user: { id: user.id }, company: { id: company.id } },
+    {
+      type: "IMPERSONATION_STARTED",
+      module: "admin",
+      description: `Platform admin started viewing "${company.name}"`,
+      metadata: { platformAdminId: user.id },
+    },
+  );
+
   await setActiveCompany(companyId);
+  logger.info("Admin view-as started", {
+    event: "admin.impersonation.start",
+    platformAdminId: user.id,
+    companyId: company.id,
+  });
+
   revalidatePath("/", "layout");
   redirect("/dashboard");
 }
@@ -153,7 +209,7 @@ export async function promotePlatformAdmin(
   }
   const target = await prisma.user.findUnique({
     where: { email: parsed.data.email },
-    select: { id: true },
+    select: { id: true, role: true },
   });
   if (!target) {
     return {
@@ -161,12 +217,33 @@ export async function promotePlatformAdmin(
       success: null,
     };
   }
+  if (target.role === "ADMIN") {
+    return {
+      error: `${parsed.data.email} is already a platform admin.`,
+      success: null,
+    };
+  }
+
   await prisma.user.update({
     where: { id: target.id },
     data: { role: "ADMIN" },
   });
+
+  // Platform-level role change — no company scope. Goes to the logger
+  // only (Axiom/Sentry ingestion). Highly sensitive, so the log context
+  // includes both the actor and the target.
+  logger.warn("Platform admin promoted", {
+    event: "admin.platform_admin.promoted",
+    promotedById: user.id,
+    promotedUserId: target.id,
+    promotedEmail: parsed.data.email,
+  });
+
   revalidatePath("/admin");
-  return { error: null, success: `${parsed.data.email} is now a platform admin.` };
+  return {
+    error: null,
+    success: `${parsed.data.email} is now a platform admin.`,
+  };
 }
 
 /**
@@ -214,6 +291,17 @@ export async function rotateAdminPassword(
     where: { id: target.id },
     data: { passwordHash: hash },
   });
+
+  // Highly sensitive — platform-admin credential rotation. Log with
+  // actor + target + timestamp via the logger. Never write to
+  // ActivityLog (cross-company, platform-level event).
+  logger.warn("Platform admin password rotated", {
+    event: "admin.platform_admin.password_rotated",
+    rotatedById: user.id,
+    targetUserId: target.id,
+    targetEmail: parsed.data.email,
+  });
+
   return {
     error: null,
     success: `Password rotated for ${parsed.data.email}.`,

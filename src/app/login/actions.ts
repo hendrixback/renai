@@ -5,8 +5,13 @@ import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { createSession, destroySession } from "@/lib/session";
+import {
+  createSession,
+  destroySession,
+  readSession,
+} from "@/lib/session";
 
 export type LoginState = { error: string | null };
 
@@ -38,8 +43,9 @@ export async function login(
   }
 
   const { email, password } = parsed.data;
+  const normalisedEmail = email.toLowerCase();
   const user = await prisma.user.findUnique({
-    where: { email: email.toLowerCase() },
+    where: { email: normalisedEmail },
     select: { id: true, passwordHash: true },
   });
 
@@ -47,15 +53,39 @@ export async function login(
   const ok = await bcrypt.compare(password, hash);
 
   if (!user || !ok) {
+    // Failed attempts go through the logger only — we deliberately do not
+    // write them to ActivityLog (no company context yet, and surfacing a
+    // failed-login count per email is a brute-force information leak).
+    // Sentry/Axiom is the correct audit surface for this.
+    logger.warn("Login failed", {
+      event: "auth.login.failed",
+      email: normalisedEmail,
+    });
     return { error: "Invalid email or password" };
   }
 
   await createSession(user.id);
+  logger.info("Login succeeded", {
+    event: "auth.login.success",
+    userId: user.id,
+    email: normalisedEmail,
+  });
+
   revalidatePath("/", "layout");
   redirect(safeRedirectPath(parsed.data.from));
 }
 
 export async function logout() {
+  // Capture userId before destroying the session so the audit log can
+  // attribute the event.
+  const session = await readSession();
+  if (session) {
+    logger.info("Logout", {
+      event: "auth.logout",
+      userId: session.userId,
+    });
+  }
+
   await destroySession();
   revalidatePath("/", "layout");
   redirect("/login");

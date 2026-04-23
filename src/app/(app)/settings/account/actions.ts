@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
-import { getCurrentUser } from "@/lib/auth";
+import { logActivity } from "@/lib/activity/log-activity";
+import { getCurrentContext, getCurrentUser } from "@/lib/auth";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 export type AccountState = {
@@ -21,8 +23,8 @@ export async function updateProfile(
   _prev: AccountState | null,
   formData: FormData,
 ): Promise<AccountState> {
-  const user = await getCurrentUser();
-  if (!user) {
+  const ctx = await getCurrentContext();
+  if (!ctx) {
     return { error: "Not authenticated", success: null, fieldErrors: {} };
   }
 
@@ -38,10 +40,25 @@ export async function updateProfile(
     };
   }
 
+  const previousName = ctx.user.name;
+
   await prisma.user.update({
-    where: { id: user.id },
+    where: { id: ctx.user.id },
     data: { name: parsed.data.name },
   });
+
+  if (previousName !== parsed.data.name) {
+    await logActivity(ctx, {
+      type: "RECORD_UPDATED",
+      module: "account",
+      recordId: ctx.user.id,
+      description: `Updated profile name: "${previousName ?? "(empty)"}" → "${parsed.data.name}"`,
+      metadata: {
+        previousName: previousName ?? null,
+        newName: parsed.data.name,
+      },
+    });
+  }
 
   revalidatePath("/", "layout");
   return { error: null, success: "Profile updated.", fieldErrors: {} };
@@ -94,8 +111,15 @@ export async function changePassword(
     return { error: "User not found", success: null, fieldErrors: {} };
   }
 
-  const ok = await bcrypt.compare(parsed.data.currentPassword, record.passwordHash);
+  const ok = await bcrypt.compare(
+    parsed.data.currentPassword,
+    record.passwordHash,
+  );
   if (!ok) {
+    logger.warn("Password change: current password mismatch", {
+      event: "auth.password.mismatch",
+      userId: user.id,
+    });
     return {
       error: null,
       success: null,
@@ -107,6 +131,23 @@ export async function changePassword(
   await prisma.user.update({
     where: { id: user.id },
     data: { passwordHash: newHash },
+  });
+
+  // Password change is security-sensitive — audit to ActivityLog under
+  // the user's active company (if any) and to the logger unconditionally
+  // so a user with no company context still leaves a footprint.
+  const ctx = await getCurrentContext();
+  if (ctx) {
+    await logActivity(ctx, {
+      type: "USER_PASSWORD_CHANGED",
+      module: "account",
+      recordId: user.id,
+      description: "Password changed",
+    });
+  }
+  logger.info("Password changed", {
+    event: "auth.password.changed",
+    userId: user.id,
   });
 
   return { error: null, success: "Password changed.", fieldErrors: {} };
