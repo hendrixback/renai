@@ -3,7 +3,9 @@
 import { refresh, revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { canManageTeam, getCurrentContext } from "@/lib/auth";
+import { logActivity } from "@/lib/activity/log-activity";
+import { getCurrentContext } from "@/lib/auth";
+import { ForbiddenError, requireRole } from "@/lib/auth/require-role";
 import { prisma } from "@/lib/prisma";
 
 export type SiteFormState = {
@@ -39,6 +41,8 @@ const siteSchema = z.object({
   postalCode: z.preprocess(emptyToUndef, z.string().max(20).optional()),
 });
 
+const NO_PERMISSION = "Only admins can manage sites.";
+
 // Inline form on /settings/sites → useActionState pattern with FormData.
 export async function createSite(
   _prev: SiteFormState | null,
@@ -46,8 +50,14 @@ export async function createSite(
 ): Promise<SiteFormState> {
   const ctx = await getCurrentContext();
   if (!ctx) return { ...emptyState, error: "Not authenticated" };
-  if (!canManageTeam(ctx.company.role)) {
-    return { ...emptyState, error: "Only owners and admins can manage sites." };
+
+  try {
+    requireRole(ctx, "ADMIN");
+  } catch (err) {
+    if (err instanceof ForbiddenError) {
+      return { ...emptyState, error: NO_PERMISSION };
+    }
+    throw err;
   }
 
   const parsed = siteSchema.safeParse({
@@ -69,9 +79,11 @@ export async function createSite(
     };
   }
 
-  await prisma.site.create({
+  const site = await prisma.site.create({
     data: {
       companyId: ctx.company.id,
+      createdById: ctx.user.id,
+      updatedById: ctx.user.id,
       name: parsed.data.name,
       addressLine1: parsed.data.addressLine1 ?? null,
       addressLine2: parsed.data.addressLine2 ?? null,
@@ -80,11 +92,19 @@ export async function createSite(
       country: parsed.data.country ?? null,
       postalCode: parsed.data.postalCode ?? null,
     },
+    select: { id: true, name: true },
+  });
+
+  await logActivity(ctx, {
+    type: "RECORD_CREATED",
+    module: "sites",
+    recordId: site.id,
+    description: `Created site "${site.name}"`,
   });
 
   revalidatePath("/settings/sites");
   refresh();
-  return { ...emptyState, success: `Site "${parsed.data.name}" added.` };
+  return { ...emptyState, success: `Site "${site.name}" added.` };
 }
 
 // Edit happens inside a base-ui Dialog portal → Atlas plain-object pattern.
@@ -93,8 +113,14 @@ export async function updateSite(
 ): Promise<SiteFormState> {
   const ctx = await getCurrentContext();
   if (!ctx) return { ...emptyState, error: "Not authenticated" };
-  if (!canManageTeam(ctx.company.role)) {
-    return { ...emptyState, error: "Only owners and admins can manage sites." };
+
+  try {
+    requireRole(ctx, "ADMIN");
+  } catch (err) {
+    if (err instanceof ForbiddenError) {
+      return { ...emptyState, error: NO_PERMISSION };
+    }
+    throw err;
   }
 
   const id = typeof data.id === "string" ? data.id : "";
@@ -111,9 +137,18 @@ export async function updateSite(
     };
   }
 
-  const result = await prisma.site.updateMany({
+  // Fetch the current row first so the audit log can record the old name
+  // and we can assert tenant ownership atomically with the update below.
+  const existing = await prisma.site.findFirst({
     where: { id, companyId: ctx.company.id },
+    select: { id: true, name: true },
+  });
+  if (!existing) return { ...emptyState, error: "Site not found" };
+
+  await prisma.site.update({
+    where: { id: existing.id },
     data: {
+      updatedById: ctx.user.id,
       name: parsed.data.name,
       addressLine1: parsed.data.addressLine1 ?? null,
       addressLine2: parsed.data.addressLine2 ?? null,
@@ -123,7 +158,20 @@ export async function updateSite(
       postalCode: parsed.data.postalCode ?? null,
     },
   });
-  if (result.count === 0) return { ...emptyState, error: "Site not found" };
+
+  await logActivity(ctx, {
+    type: "RECORD_UPDATED",
+    module: "sites",
+    recordId: existing.id,
+    description:
+      existing.name === parsed.data.name
+        ? `Updated site "${existing.name}"`
+        : `Renamed site "${existing.name}" → "${parsed.data.name}"`,
+    metadata:
+      existing.name === parsed.data.name
+        ? null
+        : { previousName: existing.name, newName: parsed.data.name },
+  });
 
   revalidatePath("/settings/sites");
   refresh();
@@ -135,10 +183,29 @@ export async function updateSite(
 // preserved but become unassigned.
 export async function deleteSite(siteId: string) {
   const ctx = await getCurrentContext();
-  if (!ctx || !canManageTeam(ctx.company.role)) return;
+  if (!ctx) return;
 
-  await prisma.site.deleteMany({
+  try {
+    requireRole(ctx, "ADMIN");
+  } catch (err) {
+    if (err instanceof ForbiddenError) return;
+    throw err;
+  }
+
+  const target = await prisma.site.findFirst({
     where: { id: siteId, companyId: ctx.company.id },
+    select: { id: true, name: true },
+  });
+  if (!target) return;
+
+  await prisma.site.delete({ where: { id: target.id } });
+
+  await logActivity(ctx, {
+    type: "RECORD_DELETED",
+    module: "sites",
+    recordId: target.id,
+    description: `Deleted site "${target.name}"`,
+    metadata: { name: target.name },
   });
 
   revalidatePath("/settings/sites");

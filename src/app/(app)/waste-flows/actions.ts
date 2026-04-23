@@ -4,7 +4,9 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { logActivity } from "@/lib/activity/log-activity";
 import { getCurrentContext } from "@/lib/auth";
+import { ForbiddenError, requireRole } from "@/lib/auth/require-role";
 import { prisma } from "@/lib/prisma";
 
 export type CreateWasteFlowState = {
@@ -65,6 +67,18 @@ export async function createWasteFlow(
   const ctx = await getCurrentContext();
   if (!ctx) {
     return { error: "Not authenticated", fieldErrors: {} };
+  }
+
+  try {
+    requireRole(ctx, "MEMBER");
+  } catch (err) {
+    if (err instanceof ForbiddenError) {
+      return {
+        error: "You don't have permission to create waste flows.",
+        fieldErrors: {},
+      };
+    }
+    throw err;
   }
 
   const raw = Object.fromEntries(formData.entries());
@@ -129,10 +143,20 @@ export async function createWasteFlow(
     }
   }
 
-  await prisma.wasteFlow.create({
+  // Reporting period derived from creation time — WasteFlow represents a
+  // standing stream, so "reporting year" is when it was registered. Used for
+  // YoY views like "flows registered in 2026 vs 2025".
+  const now = new Date();
+  const reportingYear = now.getUTCFullYear();
+  const reportingMonth = now.getUTCMonth() + 1;
+
+  const flow = await prisma.wasteFlow.create({
     data: {
       companyId: ctx.company.id,
       createdById: ctx.user.id,
+      updatedById: ctx.user.id,
+      reportingYear,
+      reportingMonth,
       name: d.name,
       description: d.description ?? null,
       materialComposition: d.materialComposition ?? null,
@@ -155,6 +179,19 @@ export async function createWasteFlow(
       isHazardous: d.isHazardous,
       isPriority: d.isPriority,
     },
+    select: { id: true, name: true, isHazardous: true, wasteCodeId: true },
+  });
+
+  await logActivity(ctx, {
+    type: "RECORD_CREATED",
+    module: "waste-flows",
+    recordId: flow.id,
+    description: `Created waste flow "${flow.name}"`,
+    metadata: {
+      name: flow.name,
+      isHazardous: flow.isHazardous,
+      wasteCodeId: flow.wasteCodeId,
+    },
   });
 
   revalidatePath("/waste-flows");
@@ -165,8 +202,30 @@ export async function deleteWasteFlow(id: string) {
   const ctx = await getCurrentContext();
   if (!ctx) return;
 
-  await prisma.wasteFlow.deleteMany({
+  // Deletion is destructive; restricted to ADMIN+ per Spec Amendment A9.
+  // VIEWER and MEMBER (Collaborator) archive via status instead.
+  try {
+    requireRole(ctx, "ADMIN");
+  } catch (err) {
+    if (err instanceof ForbiddenError) return;
+    throw err;
+  }
+
+  const target = await prisma.wasteFlow.findFirst({
     where: { id, companyId: ctx.company.id },
+    select: { id: true, name: true },
   });
+  if (!target) return;
+
+  await prisma.wasteFlow.delete({ where: { id: target.id } });
+
+  await logActivity(ctx, {
+    type: "RECORD_DELETED",
+    module: "waste-flows",
+    recordId: target.id,
+    description: `Deleted waste flow "${target.name}"`,
+    metadata: { name: target.name },
+  });
+
   revalidatePath("/waste-flows");
 }

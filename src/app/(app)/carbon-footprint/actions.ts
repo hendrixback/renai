@@ -3,7 +3,9 @@
 import { refresh, revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { logActivity } from "@/lib/activity/log-activity";
 import { getCurrentContext } from "@/lib/auth";
+import { ForbiddenError, requireRole } from "@/lib/auth/require-role";
 import {
   computeElectricityEmission,
   computeFuelEmission,
@@ -21,14 +23,62 @@ export type SimpleState = {
 const emptyToUndef = (v: unknown) =>
   typeof v === "string" && v.trim() === "" ? undefined : v;
 
-function monthDate(raw: unknown): Date | null {
+type ParsedMonth = {
+  date: Date;
+  year: number;
+  month: number;
+};
+
+function parseMonth(raw: unknown): ParsedMonth | null {
   if (typeof raw !== "string" || !raw) return null;
   const match = raw.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?/);
   if (!match) return null;
-  const y = Number(match[1]);
-  const m = Number(match[2]);
-  return new Date(Date.UTC(y, m - 1, 1));
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (month < 1 || month > 12) return null;
+  return {
+    date: new Date(Date.UTC(year, month - 1, 1)),
+    year,
+    month,
+  };
 }
+
+/**
+ * Build a JSON snapshot of the emission factor used at write time so the
+ * record's calculation basis is preserved even if the factor row is
+ * updated or superseded later (ADR-008).
+ */
+async function buildFactorSnapshot(factorId: string | null | undefined) {
+  if (!factorId) return null;
+  const factor = await prisma.emissionFactor.findUnique({
+    where: { id: factorId },
+    select: {
+      id: true,
+      kgCo2ePerUnit: true,
+      unit: true,
+      source: true,
+      region: true,
+      year: true,
+      subtype: true,
+      category: true,
+    },
+  });
+  if (!factor) return null;
+  return {
+    id: factor.id,
+    category: factor.category,
+    subtype: factor.subtype,
+    value: factor.kgCo2ePerUnit.toString(),
+    unit: factor.unit,
+    source: factor.source,
+    region: factor.region,
+    year: factor.year,
+    type: "STANDARD" as const,
+  };
+}
+
+const PERMISSION_DENIED_REGISTER =
+  "You don't have permission to register emissions data.";
 
 // ─── Fuel ──────────────────────────────────────────────────────────
 
@@ -54,6 +104,15 @@ export async function registerFuelEntry(
     return { error: "Not authenticated", success: null, fieldErrors: {} };
   }
 
+  try {
+    requireRole(ctx, "MEMBER");
+  } catch (err) {
+    if (err instanceof ForbiddenError) {
+      return { error: PERMISSION_DENIED_REGISTER, success: null, fieldErrors: {} };
+    }
+    throw err;
+  }
+
   const parsed = fuelSchema.safeParse(data);
   if (!parsed.success) {
     return {
@@ -66,7 +125,7 @@ export async function registerFuelEntry(
     };
   }
 
-  const month = monthDate(parsed.data.month);
+  const month = parseMonth(parsed.data.month);
   if (!month) {
     return {
       error: null,
@@ -96,19 +155,39 @@ export async function registerFuelEntry(
     companyId: ctx.company.id,
     region: parsed.data.region ?? "GLOBAL",
   });
+  const factorSnapshot = await buildFactorSnapshot(emission.factorId);
 
-  await prisma.fuelEntry.create({
+  const entry = await prisma.fuelEntry.create({
     data: {
       companyId: ctx.company.id,
+      createdById: ctx.user.id,
+      updatedById: ctx.user.id,
       siteId: parsed.data.siteId ?? null,
       fuelType: parsed.data.fuelType,
       unit: parsed.data.unit,
       quantity: parsed.data.quantity,
-      month,
+      month: month.date,
+      reportingYear: month.year,
+      reportingMonth: month.month,
       locationName: parsed.data.locationName ?? null,
       emissionFactorId: emission.factorId,
+      factorSnapshot: factorSnapshot ?? undefined,
       kgCo2e: emission.kgCo2e,
       notes: parsed.data.notes ?? null,
+    },
+    select: { id: true, fuelType: true, quantity: true, unit: true },
+  });
+
+  await logActivity(ctx, {
+    type: "RECORD_CREATED",
+    module: "scope-1",
+    recordId: entry.id,
+    description: `Registered ${entry.quantity} ${entry.unit} of ${entry.fuelType} (${emission.kgCo2e.toFixed(1)} kgCO₂e)`,
+    metadata: {
+      fuelType: entry.fuelType,
+      reportingYear: month.year,
+      reportingMonth: month.month,
+      kgCo2e: emission.kgCo2e,
     },
   });
 
@@ -124,9 +203,36 @@ export async function registerFuelEntry(
 export async function deleteFuelEntry(id: string) {
   const ctx = await getCurrentContext();
   if (!ctx) return;
-  await prisma.fuelEntry.deleteMany({
+
+  try {
+    // Carbon-entry deletion stays at MEMBER: correcting a typo shouldn't
+    // require admin escalation. WasteFlow deletion (bigger entity) is
+    // gated at ADMIN.
+    requireRole(ctx, "MEMBER");
+  } catch (err) {
+    if (err instanceof ForbiddenError) return;
+    throw err;
+  }
+
+  const target = await prisma.fuelEntry.findFirst({
     where: { id, companyId: ctx.company.id },
+    select: { id: true, fuelType: true, quantity: true, unit: true, kgCo2e: true },
   });
+  if (!target) return;
+
+  await prisma.fuelEntry.delete({ where: { id: target.id } });
+
+  await logActivity(ctx, {
+    type: "RECORD_DELETED",
+    module: "scope-1",
+    recordId: target.id,
+    description: `Deleted Scope 1 entry: ${target.quantity} ${target.unit} ${target.fuelType}`,
+    metadata: {
+      fuelType: target.fuelType,
+      kgCo2e: target.kgCo2e?.toString() ?? null,
+    },
+  });
+
   revalidatePath("/carbon-footprint", "layout");
   refresh();
 }
@@ -158,6 +264,15 @@ export async function registerElectricityEntry(
     return { error: "Not authenticated", success: null, fieldErrors: {} };
   }
 
+  try {
+    requireRole(ctx, "MEMBER");
+  } catch (err) {
+    if (err instanceof ForbiddenError) {
+      return { error: PERMISSION_DENIED_REGISTER, success: null, fieldErrors: {} };
+    }
+    throw err;
+  }
+
   const parsed = electricitySchema.safeParse(data);
   if (!parsed.success) {
     return {
@@ -170,7 +285,7 @@ export async function registerElectricityEntry(
     };
   }
 
-  const month = monthDate(parsed.data.month);
+  const month = parseMonth(parsed.data.month);
   if (!month) {
     return {
       error: null,
@@ -199,19 +314,48 @@ export async function registerElectricityEntry(
     companyId: ctx.company.id,
     region: parsed.data.region ?? "EU",
   });
+  const factorSnapshot = await buildFactorSnapshot(emission.factorId);
 
-  await prisma.electricityEntry.create({
+  const entry = await prisma.electricityEntry.create({
     data: {
       companyId: ctx.company.id,
+      createdById: ctx.user.id,
+      updatedById: ctx.user.id,
       siteId: parsed.data.siteId ?? null,
       kwh: parsed.data.kwh,
-      month,
+      month: month.date,
+      reportingYear: month.year,
+      reportingMonth: month.month,
       renewablePercent: parsed.data.renewablePercent ?? null,
       energyProvider: parsed.data.energyProvider ?? null,
       locationName: parsed.data.locationName ?? null,
       emissionFactorId: emission.factorId,
+      factorSnapshot: factorSnapshot ?? undefined,
       kgCo2e: emission.kgCo2e,
       notes: parsed.data.notes ?? null,
+    },
+    select: {
+      id: true,
+      kwh: true,
+      renewablePercent: true,
+      energyProvider: true,
+    },
+  });
+
+  await logActivity(ctx, {
+    type: "RECORD_CREATED",
+    module: "scope-2",
+    recordId: entry.id,
+    description: `Registered ${entry.kwh} kWh${
+      entry.renewablePercent ? ` (${entry.renewablePercent}% renewable)` : ""
+    } (${emission.kgCo2e.toFixed(1)} kgCO₂e)`,
+    metadata: {
+      kwh: entry.kwh.toString(),
+      renewablePercent: entry.renewablePercent?.toString() ?? null,
+      energyProvider: entry.energyProvider,
+      reportingYear: month.year,
+      reportingMonth: month.month,
+      kgCo2e: emission.kgCo2e,
     },
   });
 
@@ -227,9 +371,30 @@ export async function registerElectricityEntry(
 export async function deleteElectricityEntry(id: string) {
   const ctx = await getCurrentContext();
   if (!ctx) return;
-  await prisma.electricityEntry.deleteMany({
+
+  try {
+    requireRole(ctx, "MEMBER");
+  } catch (err) {
+    if (err instanceof ForbiddenError) return;
+    throw err;
+  }
+
+  const target = await prisma.electricityEntry.findFirst({
     where: { id, companyId: ctx.company.id },
+    select: { id: true, kwh: true, kgCo2e: true },
   });
+  if (!target) return;
+
+  await prisma.electricityEntry.delete({ where: { id: target.id } });
+
+  await logActivity(ctx, {
+    type: "RECORD_DELETED",
+    module: "scope-2",
+    recordId: target.id,
+    description: `Deleted Scope 2 entry: ${target.kwh} kWh`,
+    metadata: { kwh: target.kwh.toString(), kgCo2e: target.kgCo2e?.toString() ?? null },
+  });
+
   revalidatePath("/carbon-footprint", "layout");
   refresh();
 }
