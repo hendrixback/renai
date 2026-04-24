@@ -67,6 +67,8 @@ function pathForModule(module: DocumentModule): string {
       return "/settings/account";
     case "team":
       return "/team-overview";
+    case "sites":
+      return "/settings/sites";
     default:
       return "/documentation";
   }

@@ -49,6 +49,7 @@ const MODULE_LABELS: Record<string, string> = {
   regulation: "Regulation",
   account: "Account",
   team: "Team",
+  sites: "Site",
 };
 
 const MODULE_HREFS: Record<string, (recordId: string) => string> = {
@@ -60,6 +61,7 @@ const MODULE_HREFS: Record<string, (recordId: string) => string> = {
   regulation: (id) => `/regulations/${id}`,
   account: () => "/settings/account",
   team: () => "/team-overview",
+  sites: (id) => `/settings/sites/${id}`,
 };
 
 export default async function DocumentDetailPage({

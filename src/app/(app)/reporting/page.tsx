@@ -1,12 +1,8 @@
-import { PageHeader } from "@/components/page-header"
+import { permanentRedirect } from "next/navigation";
 
+// Legacy route. The feature now lives under /analysis per Spec §6.2.
+// Kept as a permanent redirect so old bookmarks + the flag-off sidebar
+// fallback land users on the right place.
 export default function ReportingPage() {
-  return (
-    <>
-      <PageHeader title="Reporting" />
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="bg-muted/50 min-h-[60vh] flex-1 rounded-xl" />
-      </div>
-    </>
-  )
+  permanentRedirect("/analysis");
 }

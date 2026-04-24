@@ -9,6 +9,7 @@ const DOCUMENT_MODULES = [
   "regulation",
   "account",
   "team",
+  "sites",
 ] as const;
 
 export const documentModuleSchema = z.enum(DOCUMENT_MODULES);

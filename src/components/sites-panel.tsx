@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { useActionState, useTransition } from "react"
 import { Loader2, PencilIcon, PlusIcon, XIcon } from "lucide-react"
 
@@ -447,7 +448,14 @@ export function SitesPanel({
               <TableBody>
                 {sites.map((s) => (
                   <TableRow key={s.id}>
-                    <TableCell className="font-medium">{s.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/settings/sites/${s.id}`}
+                        className="hover:underline"
+                      >
+                        {s.name}
+                      </Link>
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatAddress(s)}
                     </TableCell>
