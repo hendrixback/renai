@@ -1,3 +1,5 @@
+import Link from "next/link"
+
 import { FUEL_TYPES } from "@/lib/carbon-options"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -93,13 +95,23 @@ export function FuelPanel({
                 {entries.map((e) => (
                   <TableRow key={e.id}>
                     <TableCell className="text-sm">
-                      {e.month.toLocaleString(undefined, {
-                        year: "numeric",
-                        month: "short",
-                      })}
+                      <Link
+                        href={`/carbon-footprint/fuel/${e.id}`}
+                        className="hover:underline"
+                      >
+                        {e.month.toLocaleString(undefined, {
+                          year: "numeric",
+                          month: "short",
+                        })}
+                      </Link>
                     </TableCell>
                     <TableCell className="font-medium">
-                      {fuelLabel(e.fuelType)}
+                      <Link
+                        href={`/carbon-footprint/fuel/${e.id}`}
+                        className="hover:underline"
+                      >
+                        {fuelLabel(e.fuelType)}
+                      </Link>
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm tabular-nums">
                       {Number(e.quantity).toLocaleString(undefined, {
