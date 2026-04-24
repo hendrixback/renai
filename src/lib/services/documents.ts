@@ -257,6 +257,21 @@ async function link(
   });
 }
 
+async function listLinksForDocument(
+  ctx: ServiceContext,
+  documentId: string,
+): Promise<DocumentLink[]> {
+  // Tenant-scope via the document FK join — a link whose document belongs
+  // to a different company doesn't match.
+  return prisma.documentLink.findMany({
+    where: {
+      documentId,
+      document: { companyId: ctx.company.id },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 async function unlink(
   ctx: ServiceContext,
   linkId: string,
@@ -276,6 +291,7 @@ export const DocumentService = {
   findByIdForTenant,
   listByCompany,
   listForRecord,
+  listLinksForDocument,
   openReadStream,
   softDelete,
   link,

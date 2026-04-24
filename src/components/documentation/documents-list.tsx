@@ -54,7 +54,10 @@ export function DocumentsList({
           {documents.map((doc) => (
             <TableRow key={doc.id}>
               <TableCell>
-                <div className="flex flex-col">
+                <Link
+                  href={`/documentation/${doc.id}`}
+                  className="flex flex-col hover:underline"
+                >
                   <span className="font-medium">
                     {doc.title ?? doc.originalFilename}
                   </span>
@@ -63,7 +66,7 @@ export function DocumentsList({
                       {doc.originalFilename}
                     </span>
                   ) : null}
-                </div>
+                </Link>
               </TableCell>
               <TableCell>
                 <Badge variant="secondary">
