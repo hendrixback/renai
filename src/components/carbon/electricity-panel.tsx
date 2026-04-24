@@ -18,10 +18,18 @@ type Entry = {
   month: Date
   renewablePercent: string | null
   energyProvider: string | null
-  kgCo2e: string | null
+  /** Pure grid factor × kWh (Spec §11.4). */
+  locationBasedKgCo2e: string | null
+  /** Contract-adjusted (RECs/GoOs). Falls back to legacy kgCo2e for old rows. */
+  marketBasedKgCo2e: string | null
   siteName: string | null
   locationName: string | null
   notes: string | null
+}
+
+function fmt(v: string | null): string {
+  if (!v) return "—"
+  return Number(v).toLocaleString(undefined, { maximumFractionDigits: 1 })
 }
 
 export function ElectricityPanel({
@@ -31,8 +39,12 @@ export function ElectricityPanel({
   entries: Entry[]
   sites: Site[]
 }) {
-  const totalKg = entries.reduce(
-    (sum, e) => sum + (e.kgCo2e ? Number(e.kgCo2e) : 0),
+  const totalLocation = entries.reduce(
+    (sum, e) => sum + (e.locationBasedKgCo2e ? Number(e.locationBasedKgCo2e) : 0),
+    0,
+  )
+  const totalMarket = entries.reduce(
+    (sum, e) => sum + (e.marketBasedKgCo2e ? Number(e.marketBasedKgCo2e) : 0),
     0,
   )
 
@@ -42,8 +54,9 @@ export function ElectricityPanel({
         <div>
           <h2 className="text-lg font-semibold">Scope 2 — Purchased electricity</h2>
           <p className="text-sm text-muted-foreground">
-            Indirect emissions from electricity, heat, and steam you buy.
-            Renewable % reduces the grid factor proportionally.
+            GHG Protocol dual calculation. Location-based = pure grid factor
+            × kWh. Market-based = contract-adjusted (applies your renewable
+            %).
           </p>
         </div>
         <RegisterElectricityDialog sites={sites} />
@@ -57,12 +70,26 @@ export function ElectricityPanel({
               {entries.length}
             </span>
           </CardTitle>
-          <p className="text-sm tabular-nums text-muted-foreground">
-            Total:{" "}
-            <span className="font-medium text-foreground">
-              {totalKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kgCO₂e
+          <div className="flex items-center gap-6 text-sm tabular-nums text-muted-foreground">
+            <span>
+              Location-based:{" "}
+              <span className="font-medium text-foreground">
+                {totalLocation.toLocaleString(undefined, {
+                  maximumFractionDigits: 1,
+                })}{" "}
+                kgCO₂e
+              </span>
             </span>
-          </p>
+            <span>
+              Market-based:{" "}
+              <span className="font-medium text-foreground">
+                {totalMarket.toLocaleString(undefined, {
+                  maximumFractionDigits: 1,
+                })}{" "}
+                kgCO₂e
+              </span>
+            </span>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {entries.length === 0 ? (
@@ -82,7 +109,18 @@ export function ElectricityPanel({
                   <TableHead className="text-right">Renewable %</TableHead>
                   <TableHead>Provider</TableHead>
                   <TableHead>Site</TableHead>
-                  <TableHead className="text-right">kgCO₂e</TableHead>
+                  <TableHead
+                    className="text-right"
+                    title="Pure grid factor × kWh. Reflects the territorial grid mix."
+                  >
+                    Location kgCO₂e
+                  </TableHead>
+                  <TableHead
+                    className="text-right"
+                    title="Contract-adjusted via renewable % (RECs / GoOs)."
+                  >
+                    Market kgCO₂e
+                  </TableHead>
                   <TableHead className="w-[60px]" />
                 </TableRow>
               </TableHeader>
@@ -118,10 +156,15 @@ export function ElectricityPanel({
                       )}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm tabular-nums">
-                      {e.kgCo2e ? (
-                        Number(e.kgCo2e).toLocaleString(undefined, {
-                          maximumFractionDigits: 1,
-                        })
+                      {e.locationBasedKgCo2e ? (
+                        fmt(e.locationBasedKgCo2e)
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm tabular-nums">
+                      {e.marketBasedKgCo2e ? (
+                        fmt(e.marketBasedKgCo2e)
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}

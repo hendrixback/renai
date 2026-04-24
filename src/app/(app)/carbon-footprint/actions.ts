@@ -331,7 +331,12 @@ export async function registerElectricityEntry(
       locationName: parsed.data.locationName ?? null,
       emissionFactorId: emission.factorId,
       factorSnapshot: factorSnapshot ?? undefined,
-      kgCo2e: emission.kgCo2e,
+      locationBasedKgCo2e: emission.locationBasedKgCo2e,
+      marketBasedKgCo2e: emission.marketBasedKgCo2e,
+      // Legacy mirror — read paths that haven't switched to the dual columns
+      // still see the market-based value, which is the more commonly
+      // reported figure in corporate disclosures.
+      kgCo2e: emission.marketBasedKgCo2e,
       notes: parsed.data.notes ?? null,
     },
     select: {
@@ -348,14 +353,15 @@ export async function registerElectricityEntry(
     recordId: entry.id,
     description: `Registered ${entry.kwh} kWh${
       entry.renewablePercent ? ` (${entry.renewablePercent}% renewable)` : ""
-    } (${emission.kgCo2e.toFixed(1)} kgCO₂e)`,
+    } — market-based ${emission.marketBasedKgCo2e.toFixed(1)} kgCO₂e / location-based ${emission.locationBasedKgCo2e.toFixed(1)} kgCO₂e`,
     metadata: {
       kwh: entry.kwh.toString(),
       renewablePercent: entry.renewablePercent?.toString() ?? null,
       energyProvider: entry.energyProvider,
       reportingYear: month.year,
       reportingMonth: month.month,
-      kgCo2e: emission.kgCo2e,
+      locationBasedKgCo2e: emission.locationBasedKgCo2e,
+      marketBasedKgCo2e: emission.marketBasedKgCo2e,
     },
   });
 
@@ -363,7 +369,7 @@ export async function registerElectricityEntry(
   refresh();
   return {
     error: null,
-    success: `Registered (${emission.kgCo2e.toFixed(1)} kgCO₂e).`,
+    success: `Registered (market-based ${emission.marketBasedKgCo2e.toFixed(1)} kgCO₂e).`,
     fieldErrors: {},
   };
 }
@@ -381,7 +387,13 @@ export async function deleteElectricityEntry(id: string) {
 
   const target = await prisma.electricityEntry.findFirst({
     where: { id, companyId: ctx.company.id },
-    select: { id: true, kwh: true, kgCo2e: true },
+    select: {
+      id: true,
+      kwh: true,
+      kgCo2e: true,
+      locationBasedKgCo2e: true,
+      marketBasedKgCo2e: true,
+    },
   });
   if (!target) return;
 
@@ -392,7 +404,12 @@ export async function deleteElectricityEntry(id: string) {
     module: "scope-2",
     recordId: target.id,
     description: `Deleted Scope 2 entry: ${target.kwh} kWh`,
-    metadata: { kwh: target.kwh.toString(), kgCo2e: target.kgCo2e?.toString() ?? null },
+    metadata: {
+      kwh: target.kwh.toString(),
+      locationBasedKgCo2e: target.locationBasedKgCo2e?.toString() ?? null,
+      marketBasedKgCo2e:
+        target.marketBasedKgCo2e?.toString() ?? target.kgCo2e?.toString() ?? null,
+    },
   });
 
   revalidatePath("/carbon-footprint", "layout");

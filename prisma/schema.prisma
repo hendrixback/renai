@@ -215,26 +215,35 @@ model FuelEntry {
 }
 
 model ElectricityEntry {
-  id               String       @id @default(cuid())
-  companyId        String
-  siteId           String?
-  kwh              Decimal      @db.Decimal(14, 3)
-  month            DateTime
-  reportingYear    Int? // denormalised for fast YoY queries
-  reportingMonth   Int? // 1–12
-  renewablePercent Decimal?     @db.Decimal(5, 2) // 0.00–100.00
-  energyProvider   String?
-  locationName     String?
-  emissionFactorId String?
-  factorSnapshot   Json? // frozen factor metadata at write-time
-  kgCo2e           Decimal?     @db.Decimal(14, 3) // DEPRECATED: kept for backcompat; new code uses location/market fields (Phase 3 refactor)
-  notes            String?
-  recordStatus     RecordStatus @default(ACTIVE)
-  createdById      String?
-  updatedById      String?
-  deletedAt        DateTime?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  id                  String       @id @default(cuid())
+  companyId           String
+  siteId              String?
+  kwh                 Decimal      @db.Decimal(14, 3)
+  month               DateTime
+  reportingYear       Int? // denormalised for fast YoY queries
+  reportingMonth      Int? // 1–12
+  renewablePercent    Decimal?     @db.Decimal(5, 2) // 0.00–100.00
+  energyProvider      String?
+  locationName        String?
+  emissionFactorId    String?
+  factorSnapshot      Json? // frozen location-based factor metadata at write-time
+  // Dual GHG-Protocol calculation (Spec §11.4, Amendment A4).
+  // location = kwh × grid_factor (ignores renewable% — pure grid mix).
+  // market   = supplier-specific if known, else grid with renewable%
+  //            discount applied to reflect contractual RECs/GoOs.
+  locationBasedKgCo2e Decimal?     @db.Decimal(14, 3)
+  marketBasedKgCo2e   Decimal?     @db.Decimal(14, 3)
+  // Legacy single-value column. Mirrors marketBasedKgCo2e for rows written
+  // after this migration; preserved unchanged on rows written before.
+  // New read paths should prefer location/market explicitly.
+  kgCo2e              Decimal?     @db.Decimal(14, 3)
+  notes               String?
+  recordStatus        RecordStatus @default(ACTIVE)
+  createdById         String?
+  updatedById         String?
+  deletedAt           DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   site           Site?           @relation(fields: [siteId], references: [id], onDelete: SetNull)

@@ -284,26 +284,60 @@ export async function computeFuelEmission(opts: {
   };
 }
 
+/**
+ * Dual GHG-Protocol Scope 2 emission result (Spec §11.4, Amendment A4).
+ *
+ * locationBasedKgCo2e — reflects the grid mix where consumption happens.
+ *   Formula: kwh × grid_factor, regardless of renewable contracts.
+ *
+ * marketBasedKgCo2e — reflects contractual instruments (RECs, Guarantees
+ *   of Origin, PPAs). In MVP we approximate this as
+ *   kwh × grid_factor × (1 - renewable%/100) when no supplier-specific
+ *   factor is provided. A proper supplier-factor override lands in a
+ *   follow-up once the UI supports entering it.
+ */
+export type ComputedElectricityEmission = {
+  factorId: string | null;
+  factorLabel: string | null;
+  locationBasedKgCo2e: number;
+  marketBasedKgCo2e: number;
+};
+
 export async function computeElectricityEmission(opts: {
   kwh: number;
   renewablePercent?: number | null;
   companyId: string;
   region?: string;
-}): Promise<ComputedEmission> {
+}): Promise<ComputedElectricityEmission> {
   const factor = await findEmissionFactor({
     category: "ELECTRICITY",
     subtype: "grid_electricity",
     region: opts.region ?? "EU",
     companyId: opts.companyId,
   });
-  if (!factor) return { factorId: null, factorLabel: null, kgCo2e: 0 };
-  const fossilKwh =
-    opts.kwh *
-    (1 - Math.min(100, Math.max(0, opts.renewablePercent ?? 0)) / 100);
+  if (!factor) {
+    return {
+      factorId: null,
+      factorLabel: null,
+      locationBasedKgCo2e: 0,
+      marketBasedKgCo2e: 0,
+    };
+  }
+
+  const factorValue = Number(factor.kgCo2ePerUnit);
+  const renewablePct = Math.min(
+    100,
+    Math.max(0, opts.renewablePercent ?? 0),
+  );
+
+  const locationBased = factorValue * opts.kwh;
+  const marketBased = factorValue * opts.kwh * (1 - renewablePct / 100);
+
   return {
     factorId: factor.id,
     factorLabel: `${factor.source} (${factor.region})`,
-    kgCo2e: Number(factor.kgCo2ePerUnit) * fossilKwh,
+    locationBasedKgCo2e: locationBased,
+    marketBasedKgCo2e: marketBased,
   };
 }
 

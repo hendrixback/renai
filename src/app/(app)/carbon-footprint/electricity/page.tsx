@@ -32,7 +32,17 @@ export default async function ElectricityPage() {
           ? e.renewablePercent.toString()
           : null,
         energyProvider: e.energyProvider,
-        kgCo2e: e.kgCo2e ? e.kgCo2e.toString() : null,
+        // Dual GHG-Protocol values (Spec §11.4, Amendment A4). Legacy rows
+        // written before migration 0004 only have kgCo2e; fall back to
+        // that for the market-based figure so historical data still shows.
+        locationBasedKgCo2e: e.locationBasedKgCo2e
+          ? e.locationBasedKgCo2e.toString()
+          : null,
+        marketBasedKgCo2e: e.marketBasedKgCo2e
+          ? e.marketBasedKgCo2e.toString()
+          : e.kgCo2e
+            ? e.kgCo2e.toString()
+            : null,
         siteName: e.site?.name ?? null,
         locationName: e.locationName,
         notes: e.notes,
