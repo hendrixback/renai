@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
 import { WasteFlowDeleteButton } from "@/components/waste-flow-delete-button";
+import { DocumentAttachments } from "@/components/documentation/document-attachments";
 
 export const dynamic = "force-dynamic";
 
@@ -272,6 +273,13 @@ export default async function WasteFlowDetailPage({
             </dl>
           </CardContent>
         </Card>
+
+        {/* Documents */}
+        <DocumentAttachments
+          module="waste-flows"
+          recordId={flow.id}
+          redirectTo={`/waste-flows/${flow.id}`}
+        />
 
         {/* Metadata */}
         <div className="flex flex-wrap justify-between gap-3 pt-2 text-xs text-muted-foreground">

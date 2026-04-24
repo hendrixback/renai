@@ -201,10 +201,19 @@ export async function uploadDocument(
   revalidatePath("/documentation");
   if (link) revalidatePath(pathForModule(link.module));
 
-  // If the upload came from an auto-link flow, take the user back to the
-  // originating record's module page. Otherwise, back to the documentation
-  // list.
-  redirect(link ? pathForModule(link.module) : "/documentation");
+  // redirectTo, when present and safe, takes precedence — lets callers
+  // bring the user back to a specific record page instead of a module root.
+  const rawRedirect = formData.get("redirectTo");
+  const safeRedirect =
+    typeof rawRedirect === "string" &&
+    rawRedirect.startsWith("/") &&
+    !rawRedirect.startsWith("//")
+      ? rawRedirect
+      : null;
+
+  redirect(
+    safeRedirect ?? (link ? pathForModule(link.module) : "/documentation"),
+  );
 }
 
 export async function deleteDocument(documentId: string) {

@@ -18,7 +18,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { DOCUMENT_TYPES } from "@/lib/schemas/document.schema";
+import {
+  DOCUMENT_TYPES,
+  type DocumentModule,
+} from "@/lib/schemas/document.schema";
 
 const initialState: UploadDocumentState = {
   error: null,
@@ -46,7 +49,19 @@ const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   OTHER: "Other",
 };
 
-export function UploadDocumentForm({ sites }: { sites: Site[] }) {
+export function UploadDocumentForm({
+  sites,
+  linkModule,
+  linkRecordId,
+  redirectTo,
+}: {
+  sites: Site[];
+  /** When set, the upload atomically links the new doc to this record. */
+  linkModule?: DocumentModule;
+  linkRecordId?: string;
+  /** Where the server action redirects after a successful upload. */
+  redirectTo?: string;
+}) {
   const [state, formAction, isPending] = useActionState(
     uploadDocument,
     initialState,
@@ -56,6 +71,16 @@ export function UploadDocumentForm({ sites }: { sites: Site[] }) {
     <Card className="max-w-2xl">
       <CardContent className="p-6">
         <form action={formAction} className="flex flex-col gap-5">
+          {linkModule ? (
+            <input type="hidden" name="linkModule" value={linkModule} />
+          ) : null}
+          {linkRecordId ? (
+            <input type="hidden" name="linkRecordId" value={linkRecordId} />
+          ) : null}
+          {redirectTo ? (
+            <input type="hidden" name="redirectTo" value={redirectTo} />
+          ) : null}
+
           {state.error ? (
             <div
               role="alert"
