@@ -1,12 +1,8 @@
-import { PageHeader } from "@/components/page-header"
+import { permanentRedirect } from "next/navigation";
 
-export default function DocumentsPage() {
-  return (
-    <>
-      <PageHeader title="Documents" />
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="bg-muted/50 min-h-[60vh] flex-1 rounded-xl" />
-      </div>
-    </>
-  )
+// The spec (§15) calls this module "Documentation", and the new
+// implementation lives at /documentation. This legacy path survives as a
+// permanent redirect so bookmarks/links keep working.
+export default function DocumentsRedirect() {
+  permanentRedirect("/documentation");
 }

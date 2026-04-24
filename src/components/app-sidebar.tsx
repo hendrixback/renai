@@ -3,7 +3,6 @@
 import * as React from "react"
 import {
   BarChart3Icon,
-  CoinsIcon,
   FileTextIcon,
   LayoutDashboardIcon,
   LeafIcon,
@@ -46,13 +45,12 @@ type SidebarCompany = {
 const navMain: NavItem[] = [
   { title: "Dashboard", url: "/dashboard", icon: <LayoutDashboardIcon /> },
   { title: "Waste Flows", url: "/waste-flows", icon: <RecycleIcon /> },
-  { title: "Documents", url: "/documents", icon: <FileTextIcon /> },
-  { title: "Valorization Opp.", url: "/valorization", icon: <CoinsIcon /> },
   {
     title: "Carbon Footprint",
     url: "/carbon-footprint",
     icon: <LeafIcon />,
   },
+  { title: "Documentation", url: "/documentation", icon: <FileTextIcon /> },
   { title: "Reporting", url: "/reporting", icon: <BarChart3Icon /> },
   { title: "Settings", url: "/settings", icon: <SettingsIcon /> },
 ]

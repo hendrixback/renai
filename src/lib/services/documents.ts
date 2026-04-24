@@ -125,10 +125,7 @@ async function findByIdForTenant(
 
 async function listByCompany(
   ctx: ServiceContext,
-  opts: ListDocumentsInput = {
-    limit: 50,
-    tags: [],
-  } as unknown as ListDocumentsInput,
+  opts: ListDocumentsInput = { limit: 50 },
 ): Promise<Document[]> {
   const where: Parameters<typeof prisma.document.findMany>[0] = {
     where: {
