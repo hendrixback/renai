@@ -6,6 +6,7 @@ import {
   PlusIcon,
   RecycleIcon,
   Scale3DIcon,
+  SparklesIcon,
   ZapIcon,
 } from "lucide-react";
 
@@ -215,6 +216,57 @@ export default async function DashboardPage() {
           />
         </div>
 
+        {/* Empty-state CTA — fires when no waste flows AND no carbon entries
+            have been registered yet. Skips once the user has any data so
+            seasoned tenants don't see it. */}
+        {kpi.total === 0 &&
+        carbon.fuelEntryCount === 0 &&
+        carbon.electricityEntryCount === 0 ? (
+          <Card className="border-dashed bg-muted/30">
+            <CardContent className="flex flex-col items-start gap-4 p-6 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-lg">
+                  <SparklesIcon className="size-5" />
+                </div>
+                <div className="space-y-0.5">
+                  <h2 className="text-base font-semibold">
+                    Welcome to RenAI — let&apos;s populate your footprint
+                  </h2>
+                  <p className="text-muted-foreground text-sm">
+                    Start by registering a waste flow or logging this month&apos;s
+                    fuel and electricity. The dashboard fills in as you add
+                    records.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" nativeButton={false} render={<Link href="/waste-flows/new" />}>
+                  <RecycleIcon className="size-4" />
+                  Add Waste Flow
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  nativeButton={false}
+                  render={<Link href="/carbon-footprint/fuel" />}
+                >
+                  <FlameIcon className="size-4" />
+                  Log Scope 1
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  nativeButton={false}
+                  render={<Link href="/carbon-footprint/electricity" />}
+                >
+                  <ZapIcon className="size-4" />
+                  Log Scope 2
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+
         {/* Alerts */}
         <InsightsAlerts alerts={alerts} />
 
@@ -261,7 +313,7 @@ export default async function DashboardPage() {
 
           <Card className="gap-3 lg:col-span-2">
             <CardHeader>
-              <CardTitle>Compliance Snapshot</CardTitle>
+              <CardTitle>Data Completeness</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2">
               <SnapshotRow
@@ -270,15 +322,30 @@ export default async function DashboardPage() {
                 total={kpi.total}
               />
               <SnapshotRow
+                label="With treatment code"
+                value={kpi.total - kpi.untreatedCount}
+                total={kpi.total}
+              />
+              <SnapshotRow
+                label="With category"
+                value={kpi.withCategory}
+                total={kpi.total}
+              />
+              <SnapshotRow
+                label="With site or location"
+                value={kpi.withSite}
+                total={kpi.total}
+              />
+              <SnapshotRow
+                label="With estimated quantity"
+                value={kpi.withQuantity}
+                total={kpi.total}
+              />
+              <SnapshotRow
                 label="Hazardous (flagged)"
                 value={kpi.hazardous}
                 total={kpi.total}
                 tone="danger"
-              />
-              <SnapshotRow
-                label="With Treatment code"
-                value={kpi.total - kpi.untreatedCount}
-                total={kpi.total}
               />
               <SnapshotRow
                 label="Priority"

@@ -155,6 +155,13 @@ export async function getDashboardData(companyId: string) {
     });
   }
 
+  // Data-completeness signals — fuel the expanded Compliance Snapshot
+  // widget on the dashboard so operators can see where their dataset is
+  // thinnest before reporting season.
+  const withSite = flows.filter((f) => f.siteId || f.locationName).length;
+  const withQuantity = flows.filter((f) => f.estimatedQuantity != null).length;
+  const withCategory = flows.filter((f) => f.category != null).length;
+
   return {
     kpi: {
       total,
@@ -169,6 +176,9 @@ export async function getDashboardData(companyId: string) {
       recoveryCount,
       disposalCount,
       untreatedCount,
+      withSite,
+      withQuantity,
+      withCategory,
     },
     byCategory,
     byStatus: [
