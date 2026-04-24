@@ -5,29 +5,46 @@
 
 ---
 
-## ADR-001: Cloudflare R2 for file storage
+## ADR-001: Railway Volumes for MVP file storage (R2 as documented future path)
 
-**Status**: Accepted · 2026-04-23
+**Status**: Accepted · 2026-04-23 · Revised 2026-04-24
 
-**Context**: Documentation module (§15) requires multi-tenant file storage with preview, download, tenant-isolated access control, GDPR-compliant EU regions, and cost-effective egress. Files are typically 100KB–10MB PDFs/images/spreadsheets. No current file storage exists in the app.
+**Context**: Documentation module (§15) requires multi-tenant file storage with preview, download, tenant-isolated access control, GDPR-compliant EU regions. Files are typically 100KB–10MB PDFs/images/spreadsheets. No current file storage exists in the app.
 
-**Decision**: Use Cloudflare R2 as the object store. Tenant isolation via prefixed keys (`companies/{companyId}/documents/{documentId}/{filename}`). Application-layer authorization on every download — no public URLs.
+**Decision**: For MVP, use **Railway persistent Volumes** mounted at `/data/storage`. Tenant isolation via prefixed paths (`companies/{companyId}/documents/{documentId}/{filename}`). All downloads proxied through a Next.js route that enforces tenant check + role check before streaming the file back — no public paths, no direct filesystem exposure.
+
+When scale or geography demands (multi-region customers, meaningful egress cost, need for signed URLs or CDN), migrate to Cloudflare R2. The storage service is structured behind a `StorageBackend` interface precisely so the backend swap is a ~1-day job that touches zero business logic.
 
 **Consequences**:
-- **+** S3-compatible API (works with AWS SDK); easy exit path to S3 if needed.
-- **+** Zero egress fees → cheap downloads for customers reviewing their own docs.
-- **+** Free tier: 10GB storage, 1M Class A ops/month — enough for Maxtil + early customers.
-- **+** EU jurisdiction available (GDPR).
-- **−** Requires signed-URL generation for downloads (adds latency ~50ms).
-- **−** No native image transforms (use `next/image` + R2 HTTP caching).
+- **+** Zero new vendor, zero credentials, zero monthly bill beyond Railway.
+- **+** One less surface for secrets to leak.
+- **+** Local dev is trivial — just a folder on disk.
+- **+** Interface abstraction preserves the clean migration path to R2.
+- **−** Downloads proxy through the Next.js server (no signed URLs, no CDN). At MVP document sizes (1–10MB) and Maxtil-scale traffic this is a non-issue; revisit when concurrent downloads start saturating a server worker.
+- **−** Single-region. If we ever run app instances across regions, file access from non-home regions breaks. Not a near-term concern.
+- **−** Backup is app-level responsibility — add a scheduled Railway job that rsyncs the volume to S3-compatible cold storage once R2 is on (or sooner if needed).
+- **−** Bandwidth counted against Railway's paid tier (as opposed to R2's zero egress).
+
+**When to migrate to R2**:
+- Customer count ≥ 5, OR
+- Total storage > 50GB, OR
+- Monthly egress bill from Railway crosses a threshold we'll define after the first customer, OR
+- International expansion creates latency pain for non-EU users.
 
 **Alternatives considered**:
-- **AWS S3**: higher egress costs, otherwise equivalent. Chosen-against on price.
+- **Cloudflare R2** (our original choice): objectively better at scale, but a second vendor to provision and two more env vars for an MVP that doesn't need any of R2's advantages yet. Over-architecture for current customer base.
+- **AWS S3**: more expensive than R2, otherwise equivalent to R2.
 - **Supabase Storage**: tightly coupled to Supabase stack; we're on Railway+Prisma, not Supabase.
-- **Railway Volumes**: not multi-region, not built for object storage, no CDN.
 - **Vercel Blob**: locked to Vercel, and we're on Railway.
+- **Postgres bytea** (files in the DB): a mistake every team regrets.
 
-**Implementation notes**: `lib/storage/r2-client.ts` exposes `uploadFile`, `getDownloadUrl`, `deleteFile` — never accessed directly from React; all access through server actions that enforce tenant check.
+**Implementation notes**:
+- `lib/storage/types.ts` defines `StorageBackend` interface. `lib/storage/local-disk.ts` implements it against the volume. A future `lib/storage/r2.ts` implements the same interface against Cloudflare R2.
+- Never accessed directly from React components; all file ops go through server actions that enforce tenant + role checks.
+- Env: `STORAGE_ROOT` (default `/tmp/renai-storage` in dev, set to `/data/storage` in Railway production).
+- Max file size: 50MB per file (configurable via `STORAGE_MAX_BYTES`).
+- MIME whitelist enforced at upload time (PDF, PNG, JPG, JPEG, WebP, Excel xlsx, Word docx, CSV, plain text) per Spec §15.4.
+- Filename sanitisation at upload — no traversal, no null bytes, length cap.
 
 ---
 
@@ -442,7 +459,7 @@ Used in layouts and route-level guards. Server-side flags (non-NEXT_PUBLIC_) for
 
 | # | Decision | Status | Date |
 |---|---|---|---|
-| ADR-001 | R2 for file storage | Accepted | 2026-04-23 |
+| ADR-001 | Railway Volumes for MVP file storage (R2 as future path) | Accepted (revised) | 2026-04-24 |
 | ADR-002 | Resend for email | Accepted | 2026-04-23 |
 | ADR-003 | Sentry + Pino for observability | Accepted | 2026-04-23 |
 | ADR-004 | Recharts stays | Accepted | 2026-04-23 |
