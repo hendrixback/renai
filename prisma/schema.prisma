@@ -179,26 +179,27 @@ enum EmissionCategory {
 }
 
 model FuelEntry {
-  id               String       @id @default(cuid())
-  companyId        String
-  siteId           String?
-  fuelType         String // matches EmissionFactor.subtype: "diesel", "petrol", "natural_gas", ...
-  quantity         Decimal      @db.Decimal(14, 3)
-  unit             String // "L", "m3", "kg", "kWh"
-  month            DateTime // first day of the accounting month (UTC)
-  reportingYear    Int? // denormalised for fast YoY queries (derived from month)
-  reportingMonth   Int? // 1–12 (derived from month)
-  locationName     String?
-  emissionFactorId String?
-  factorSnapshot   Json? // frozen factor metadata at write-time: {value, unit, source, region, year, version, type}
-  kgCo2e           Decimal?     @db.Decimal(14, 3) // snapshot at time of write
-  notes            String?
-  recordStatus     RecordStatus @default(ACTIVE)
-  createdById      String?
-  updatedById      String?
-  deletedAt        DateTime?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  id                 String              @id @default(cuid())
+  companyId          String
+  siteId             String?
+  fuelType           String // matches EmissionFactor.subtype: "diesel", "petrol", "natural_gas", ...
+  emissionSourceType EmissionSourceType? // Spec §10.4: stationary, mobile, boiler, generator…
+  quantity           Decimal             @db.Decimal(14, 3)
+  unit               String // "L", "m3", "kg", "kWh"
+  month              DateTime // first day of the accounting month (UTC)
+  reportingYear      Int? // denormalised for fast YoY queries (derived from month)
+  reportingMonth     Int? // 1–12 (derived from month)
+  locationName       String?
+  emissionFactorId   String?
+  factorSnapshot     Json? // frozen factor metadata at write-time: {value, unit, source, region, year, version, type}
+  kgCo2e             Decimal?            @db.Decimal(14, 3) // snapshot at time of write
+  notes              String?
+  recordStatus       RecordStatus        @default(ACTIVE)
+  createdById        String?
+  updatedById        String?
+  deletedAt          DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   site           Site?           @relation(fields: [siteId], references: [id], onDelete: SetNull)
@@ -489,6 +490,23 @@ enum RecordStatus {
   DRAFT
   ACTIVE
   ARCHIVED
+}
+
+/// Scope 1 emission source classification per Spec §10.4.
+/// Independent from fuelType: the same fuel can be burned in different
+/// source contexts (e.g. diesel in a generator vs. in a delivery truck).
+enum EmissionSourceType {
+  STATIONARY_COMBUSTION
+  MOBILE_COMBUSTION
+  COMPANY_VEHICLES
+  BOILERS
+  GENERATORS
+  NATURAL_GAS_USE
+  DIESEL_USE
+  LPG_USE
+  GASOLINE_USE
+  PROCESS_EMISSIONS
+  FUGITIVE_EMISSIONS
 }
 
 // ─── Documentation (Spec §15) ────────────────────────────────────

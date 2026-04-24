@@ -7,7 +7,12 @@ import {
   registerFuelEntry,
   type SimpleState,
 } from "@/app/(app)/carbon-footprint/actions"
-import { FUEL_TYPES, FUEL_UNIT_OPTIONS, REGIONS } from "@/lib/carbon-options"
+import {
+  EMISSION_SOURCE_TYPES,
+  FUEL_TYPES,
+  FUEL_UNIT_OPTIONS,
+  REGIONS,
+} from "@/lib/carbon-options"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -43,6 +48,7 @@ export function RegisterFuelDialog({ sites }: { sites: Site[] }) {
   const [pending, startTransition] = useTransition()
 
   const [fuelType, setFuelType] = useState("diesel")
+  const [emissionSourceType, setEmissionSourceType] = useState("")
   const [unit, setUnit] = useState("L")
   const [quantity, setQuantity] = useState("")
   const [month, setMonth] = useState("")
@@ -53,6 +59,7 @@ export function RegisterFuelDialog({ sites }: { sites: Site[] }) {
 
   function resetForm() {
     setFuelType("diesel")
+    setEmissionSourceType("")
     setUnit("L")
     setQuantity("")
     setMonth("")
@@ -73,6 +80,7 @@ export function RegisterFuelDialog({ sites }: { sites: Site[] }) {
     startTransition(async () => {
       const result = await registerFuelEntry({
         fuelType,
+        emissionSourceType,
         unit,
         quantity,
         month,
@@ -147,6 +155,26 @@ export function RegisterFuelDialog({ sites }: { sites: Site[] }) {
               <FieldError errors={state.fieldErrors.unit} />
             </Field>
           </div>
+
+          <Field>
+            <FieldLabel htmlFor="emissionSourceType">
+              Emission source type
+            </FieldLabel>
+            <select
+              id="emissionSourceType"
+              value={emissionSourceType}
+              onChange={(e) => setEmissionSourceType(e.target.value)}
+              className={selectClass}
+            >
+              <option value="">— Not specified —</option>
+              {EMISSION_SOURCE_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <FieldError errors={state.fieldErrors.emissionSourceType} />
+          </Field>
 
           <Field>
             <FieldLabel htmlFor="quantity">Quantity</FieldLabel>

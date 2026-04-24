@@ -9,7 +9,12 @@ import {
   updateFuelEntry,
   type SimpleState,
 } from "@/app/(app)/carbon-footprint/actions";
-import { FUEL_TYPES, FUEL_UNIT_OPTIONS, REGIONS } from "@/lib/carbon-options";
+import {
+  EMISSION_SOURCE_TYPES,
+  FUEL_TYPES,
+  FUEL_UNIT_OPTIONS,
+  REGIONS,
+} from "@/lib/carbon-options";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -20,6 +25,7 @@ type Site = { id: string; name: string };
 export type FuelEntryInitial = {
   id: string;
   fuelType: string;
+  emissionSourceType: string | null;
   unit: string;
   quantity: string;
   month: string; // YYYY-MM
@@ -51,6 +57,9 @@ export function EditFuelEntryForm({
   const [pending, startTransition] = useTransition();
 
   const [fuelType, setFuelType] = useState(entry.fuelType);
+  const [emissionSourceType, setEmissionSourceType] = useState(
+    entry.emissionSourceType ?? "",
+  );
   const [unit, setUnit] = useState(entry.unit);
   const [quantity, setQuantity] = useState(entry.quantity);
   const [month, setMonth] = useState(entry.month);
@@ -69,6 +78,7 @@ export function EditFuelEntryForm({
     startTransition(async () => {
       const result = await updateFuelEntry(entry.id, {
         fuelType,
+        emissionSourceType,
         unit,
         quantity,
         month,
@@ -128,6 +138,26 @@ export function EditFuelEntryForm({
               <FieldError errors={state.fieldErrors.unit} />
             </Field>
           </div>
+
+          <Field>
+            <FieldLabel htmlFor="emissionSourceType">
+              Emission source type
+            </FieldLabel>
+            <select
+              id="emissionSourceType"
+              value={emissionSourceType}
+              onChange={(e) => setEmissionSourceType(e.target.value)}
+              className={selectClass}
+            >
+              <option value="">— Not specified —</option>
+              {EMISSION_SOURCE_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <FieldError errors={state.fieldErrors.emissionSourceType} />
+          </Field>
 
           <Field>
             <FieldLabel htmlFor="quantity">Quantity</FieldLabel>

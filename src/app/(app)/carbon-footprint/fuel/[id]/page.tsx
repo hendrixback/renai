@@ -29,6 +29,20 @@ const FUEL_TYPE_LABELS: Record<string, string> = {
   wood_pellets: "Wood pellets",
 };
 
+const EMISSION_SOURCE_TYPE_LABELS: Record<string, string> = {
+  STATIONARY_COMBUSTION: "Stationary combustion",
+  MOBILE_COMBUSTION: "Mobile combustion",
+  COMPANY_VEHICLES: "Company vehicles",
+  BOILERS: "Boilers",
+  GENERATORS: "Generators",
+  NATURAL_GAS_USE: "Natural gas use",
+  DIESEL_USE: "Diesel use",
+  LPG_USE: "LPG use",
+  GASOLINE_USE: "Gasoline use",
+  PROCESS_EMISSIONS: "Process emissions",
+  FUGITIVE_EMISSIONS: "Fugitive emissions",
+};
+
 const STATUS_BADGE: Record<string, "default" | "secondary" | "outline"> = {
   ACTIVE: "default",
   DRAFT: "outline",
@@ -173,6 +187,14 @@ export default async function FuelEntryDetailPage({
             <dl className="flex flex-col">
               <DetailRow label="Fuel type">
                 {FUEL_TYPE_LABELS[entry.fuelType] ?? entry.fuelType}
+              </DetailRow>
+              <DetailRow label="Emission source type">
+                {entry.emissionSourceType ? (
+                  EMISSION_SOURCE_TYPE_LABELS[entry.emissionSourceType] ??
+                  entry.emissionSourceType
+                ) : (
+                  <Empty />
+                )}
               </DetailRow>
               <DetailRow label="Quantity">
                 {Number(entry.quantity).toLocaleString(undefined, {

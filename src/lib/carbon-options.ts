@@ -32,3 +32,27 @@ export const REGIONS = [
   { value: "EU", label: "EU average" },
   { value: "GLOBAL", label: "Global average" },
 ] as const;
+
+/**
+ * Scope 1 emission source classification (Spec §10.4).
+ *
+ * Independent from fuel type: the same fuel (e.g. diesel) can be burned
+ * as STATIONARY_COMBUSTION (a backup generator on site) or MOBILE_COMBUSTION
+ * (a delivery truck), and those are reported separately in audits.
+ */
+export const EMISSION_SOURCE_TYPES = [
+  { value: "STATIONARY_COMBUSTION", label: "Stationary combustion" },
+  { value: "MOBILE_COMBUSTION", label: "Mobile combustion" },
+  { value: "COMPANY_VEHICLES", label: "Company vehicles" },
+  { value: "BOILERS", label: "Boilers" },
+  { value: "GENERATORS", label: "Generators" },
+  { value: "NATURAL_GAS_USE", label: "Natural gas use" },
+  { value: "DIESEL_USE", label: "Diesel use" },
+  { value: "LPG_USE", label: "LPG use" },
+  { value: "GASOLINE_USE", label: "Gasoline use" },
+  { value: "PROCESS_EMISSIONS", label: "Process emissions" },
+  { value: "FUGITIVE_EMISSIONS", label: "Fugitive emissions" },
+] as const;
+
+export type EmissionSourceTypeValue =
+  (typeof EMISSION_SOURCE_TYPES)[number]["value"];

@@ -82,8 +82,26 @@ const PERMISSION_DENIED_REGISTER =
 
 // ─── Fuel ──────────────────────────────────────────────────────────
 
+const EMISSION_SOURCE_TYPE_VALUES = [
+  "STATIONARY_COMBUSTION",
+  "MOBILE_COMBUSTION",
+  "COMPANY_VEHICLES",
+  "BOILERS",
+  "GENERATORS",
+  "NATURAL_GAS_USE",
+  "DIESEL_USE",
+  "LPG_USE",
+  "GASOLINE_USE",
+  "PROCESS_EMISSIONS",
+  "FUGITIVE_EMISSIONS",
+] as const;
+
 const fuelSchema = z.object({
   fuelType: z.string().trim().min(1, "Fuel type is required"),
+  emissionSourceType: z.preprocess(
+    emptyToUndef,
+    z.enum(EMISSION_SOURCE_TYPE_VALUES).optional(),
+  ),
   unit: z.enum(["L", "m3", "kg", "kWh"]),
   quantity: z.coerce.number().positive("Quantity must be > 0"),
   month: z.string().trim().min(1, "Month is required"),
@@ -164,6 +182,7 @@ export async function registerFuelEntry(
       updatedById: ctx.user.id,
       siteId: parsed.data.siteId ?? null,
       fuelType: parsed.data.fuelType,
+      emissionSourceType: parsed.data.emissionSourceType ?? null,
       unit: parsed.data.unit,
       quantity: parsed.data.quantity,
       month: month.date,
@@ -281,6 +300,7 @@ export async function updateFuelEntry(
       updatedById: ctx.user.id,
       siteId: parsed.data.siteId ?? null,
       fuelType: parsed.data.fuelType,
+      emissionSourceType: parsed.data.emissionSourceType ?? null,
       unit: parsed.data.unit,
       quantity: parsed.data.quantity,
       month: month.date,

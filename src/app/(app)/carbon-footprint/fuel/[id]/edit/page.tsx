@@ -54,6 +54,7 @@ export default async function EditFuelEntryPage({
   const initial: FuelEntryInitial = {
     id: entry.id,
     fuelType: entry.fuelType,
+    emissionSourceType: entry.emissionSourceType,
     unit: entry.unit,
     quantity: entry.quantity.toString(),
     month: toMonthString(entry.month),
