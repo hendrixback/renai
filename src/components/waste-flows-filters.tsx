@@ -4,7 +4,11 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import * as React from "react"
 import { XIcon } from "lucide-react"
 
-import { STATUS_OPTIONS } from "@/lib/waste-flows"
+import {
+  FREQUENCY_OPTIONS,
+  STATUS_OPTIONS,
+  TREATMENT_OPTIONS,
+} from "@/lib/waste-flows"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -59,18 +63,24 @@ export function WasteFlowsFilters({
   const params = useSearchParams()
 
   const [q, setQ] = React.useState(params.get("q") ?? "")
+  const [code, setCode] = React.useState(params.get("code") ?? "")
 
   const currentCategory = params.get("category") ?? ALL
   const currentStatus = params.get("status") ?? ALL
   const currentSite = params.get("site") ?? ALL
+  const currentFrequency = params.get("frequency") ?? ALL
+  const currentTreatment = params.get("treatment") ?? ALL
   const currentHaz = params.get("hazardous") === "true"
   const currentPri = params.get("priority") === "true"
 
   const hasFilters =
     q !== "" ||
+    code !== "" ||
     currentCategory !== ALL ||
     currentStatus !== ALL ||
     currentSite !== ALL ||
+    currentFrequency !== ALL ||
+    currentTreatment !== ALL ||
     currentHaz ||
     currentPri
 
@@ -103,8 +113,16 @@ export function WasteFlowsFilters({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q])
 
+  // Debounce LoW code input (text match can be partial, so same UX as search).
+  React.useEffect(() => {
+    const id = setTimeout(() => setParam("code", code.trim()), 250)
+    return () => clearTimeout(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code])
+
   const reset = () => {
     setQ("")
+    setCode("")
     router.replace(pathname, { scroll: false })
   }
 
@@ -233,6 +251,94 @@ export function WasteFlowsFilters({
           </div>
         </div>
       ) : null}
+
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs">Frequency</Label>
+        <div className="relative">
+          <Select
+            value={currentFrequency}
+            onValueChange={(v) => setParam("frequency", String(v ?? ""))}
+          >
+            <SelectTrigger
+              className={
+                currentFrequency !== ALL
+                  ? "min-w-[140px] pr-14"
+                  : "min-w-[140px]"
+              }
+            >
+              <PlaceholderValue
+                allLabel="All frequencies"
+                resolve={(v) =>
+                  FREQUENCY_OPTIONS.find((o) => o.value === v)?.label
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All frequencies</SelectItem>
+              {FREQUENCY_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <SelectClearButton
+            visible={currentFrequency !== ALL}
+            onClear={() => setParam("frequency", "")}
+            label="Clear frequency filter"
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs">Treatment</Label>
+        <div className="relative">
+          <Select
+            value={currentTreatment}
+            onValueChange={(v) => setParam("treatment", String(v ?? ""))}
+          >
+            <SelectTrigger
+              className={
+                currentTreatment !== ALL
+                  ? "min-w-[170px] pr-14"
+                  : "min-w-[170px]"
+              }
+            >
+              <PlaceholderValue
+                allLabel="All treatments"
+                resolve={(v) =>
+                  TREATMENT_OPTIONS.find((o) => o.value === v)?.label
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All treatments</SelectItem>
+              {TREATMENT_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <SelectClearButton
+            visible={currentTreatment !== ALL}
+            onClear={() => setParam("treatment", "")}
+            label="Clear treatment filter"
+          />
+        </div>
+      </div>
+
+      <div className="flex min-w-[160px] flex-col gap-1.5">
+        <Label htmlFor="code" className="text-xs">
+          LoW code
+        </Label>
+        <Input
+          id="code"
+          placeholder="e.g. 15 01 01"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+        />
+      </div>
 
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs">Hazardous</Label>

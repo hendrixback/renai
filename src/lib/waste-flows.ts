@@ -10,9 +10,25 @@ export type WasteFlowListSearchParams = {
   site?: string | null;
   hazardous?: string | null;
   priority?: string | null;
+  frequency?: string | null;
+  treatment?: string | null;
+  code?: string | null;
 };
 
 const VALID_STATUS = ["ACTIVE", "INACTIVE", "ARCHIVED"] as const;
+const VALID_FREQUENCY = [
+  "DAILY",
+  "WEEKLY",
+  "MONTHLY",
+  "QUARTERLY",
+  "YEARLY",
+  "ONE_OFF",
+  "CONTINUOUS",
+] as const;
+const VALID_TREATMENT = [
+  "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10", "R11", "R12", "R13",
+  "D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10", "D11", "D12", "D13", "D14", "D15",
+] as const;
 
 /**
  * Builds the Prisma where-clause used by both the list page and the
@@ -38,6 +54,26 @@ export function buildWasteFlowsWhere(
   }
   if (params.priority === "true") {
     where.isPriority = true;
+  }
+  if (
+    params.frequency &&
+    (VALID_FREQUENCY as readonly string[]).includes(params.frequency)
+  ) {
+    where.frequency = params.frequency as (typeof VALID_FREQUENCY)[number];
+  }
+  if (
+    params.treatment &&
+    (VALID_TREATMENT as readonly string[]).includes(params.treatment)
+  ) {
+    where.treatmentCode = params.treatment as (typeof VALID_TREATMENT)[number];
+  }
+  if (params.code) {
+    const code = params.code.trim();
+    if (code.length > 0) {
+      where.wasteCode = {
+        is: { displayCode: { contains: code, mode: "insensitive" } },
+      };
+    }
   }
   if (params.q) {
     const q = params.q.trim();
@@ -79,6 +115,13 @@ export function describeWasteFlowFilters(
   }
   if (params.hazardous === "true") parts.push("Hazardous only");
   if (params.priority === "true") parts.push("Priority only");
+  if (params.frequency && (VALID_FREQUENCY as readonly string[]).includes(params.frequency)) {
+    parts.push(`Frequency: ${params.frequency}`);
+  }
+  if (params.treatment && (VALID_TREATMENT as readonly string[]).includes(params.treatment)) {
+    parts.push(`Treatment: ${params.treatment}`);
+  }
+  if (params.code) parts.push(`LoW code contains: "${params.code.trim()}"`);
   return parts.length ? `Filters — ${parts.join(" · ")}` : undefined;
 }
 
