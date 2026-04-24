@@ -14,6 +14,7 @@ import {
 } from "@/lib/waste-flows"
 import {
   createWasteFlow,
+  updateWasteFlow,
   type CreateWasteFlowState,
 } from "@/app/(app)/waste-flows/actions"
 import { Button } from "@/components/ui/button"
@@ -49,6 +50,35 @@ import {
 type Option = { value: string; label: string }
 type Category = { id: string; slug: string; name: string }
 type Site = { id: string; name: string }
+
+/**
+ * Values to prepopulate the form with. Used in edit mode so the user sees
+ * the record's current state and can change only the fields they care about.
+ */
+export type WasteFlowFormInitial = {
+  id: string
+  name: string
+  description: string | null
+  materialComposition: string | null
+  categoryId: string | null
+  wasteCodeId: string | null
+  status: string
+  estimatedQuantity: string | null
+  quantityUnit: string
+  frequency: string
+  siteId: string | null
+  locationName: string | null
+  storageMethod: string | null
+  currentDestination: string | null
+  currentOperator: string | null
+  internalCode: string | null
+  treatmentCode: string | null
+  treatmentNotes: string | null
+  recoveryNotes: string | null
+  notes: string | null
+  isHazardous: boolean
+  isPriority: boolean
+}
 
 const initial: CreateWasteFlowState = { error: null, fieldErrors: {} }
 
@@ -182,27 +212,46 @@ export function WasteFlowForm({
   categories,
   wasteCodes,
   sites,
+  initialValues,
 }: {
   categories: Category[]
   wasteCodes: WasteCodeOption[]
   sites: Site[]
+  /** Populate from an existing record to switch the form into edit mode. */
+  initialValues?: WasteFlowFormInitial
 }) {
+  const isEdit = !!initialValues
+
   const [state, formAction, isPending] = useActionState(
-    createWasteFlow,
+    isEdit ? updateWasteFlow : createWasteFlow,
     initial,
   )
 
-  const [categoryId, setCategoryId] = React.useState<string>("")
-  const [siteId, setSiteId] = React.useState<string>("")
-  const [treatmentCode, setTreatmentCode] = React.useState<string>("")
+  const [categoryId, setCategoryId] = React.useState<string>(
+    initialValues?.categoryId ?? "",
+  )
+  const [siteId, setSiteId] = React.useState<string>(
+    initialValues?.siteId ?? "",
+  )
+  const [treatmentCode, setTreatmentCode] = React.useState<string>(
+    initialValues?.treatmentCode ?? "",
+  )
 
   const selectedCategory = categories.find((c) => c.id === categoryId)
   const restrictToChapters = selectedCategory
     ? CATEGORY_CHAPTERS[selectedCategory.slug]
     : undefined
 
+  const cancelHref = isEdit
+    ? `/waste-flows/${initialValues.id}`
+    : "/waste-flows"
+
   return (
     <form action={formAction} className="flex flex-col gap-6 p-4 pt-0">
+      {isEdit ? (
+        <input type="hidden" name="id" value={initialValues.id} />
+      ) : null}
+
       {/* General Information */}
       <SectionCard title="General Information">
         <Field>
@@ -213,7 +262,8 @@ export function WasteFlowForm({
             placeholder="e.g. Mixed textile scraps"
             required
             maxLength={200}
-            autoFocus
+            autoFocus={!isEdit}
+            defaultValue={initialValues?.name}
           />
           <FieldError errors={state.fieldErrors.name} />
         </Field>
@@ -271,7 +321,7 @@ export function WasteFlowForm({
             <FieldLabel htmlFor="status">Status</FieldLabel>
             <OptionsSelect
               name="status"
-              defaultValue="ACTIVE"
+              defaultValue={initialValues?.status ?? "ACTIVE"}
               options={STATUS_OPTIONS}
             />
             <FieldError errors={state.fieldErrors.status} />
@@ -284,6 +334,7 @@ export function WasteFlowForm({
             codes={wasteCodes}
             name="wasteCodeId"
             restrictToChapters={restrictToChapters}
+            defaultValue={initialValues?.wasteCodeId ?? undefined}
           />
           <FieldDescription>
             Commission Decision 2014/955/EU. Hazardous codes auto-mark the flow
@@ -294,7 +345,12 @@ export function WasteFlowForm({
 
         <Field>
           <FieldLabel htmlFor="description">Description</FieldLabel>
-          <Textarea id="description" name="description" rows={3} />
+          <Textarea
+            id="description"
+            name="description"
+            rows={3}
+            defaultValue={initialValues?.description ?? undefined}
+          />
           <FieldError errors={state.fieldErrors.description} />
         </Field>
 
@@ -306,6 +362,7 @@ export function WasteFlowForm({
             id="materialComposition"
             name="materialComposition"
             placeholder="e.g. 80% PET, 20% HDPE"
+            defaultValue={initialValues?.materialComposition ?? undefined}
           />
           <FieldError errors={state.fieldErrors.materialComposition} />
         </Field>
@@ -325,6 +382,7 @@ export function WasteFlowForm({
               step="0.001"
               min="0"
               placeholder="0"
+              defaultValue={initialValues?.estimatedQuantity ?? undefined}
             />
             <FieldError errors={state.fieldErrors.estimatedQuantity} />
           </Field>
@@ -332,7 +390,7 @@ export function WasteFlowForm({
             <FieldLabel htmlFor="quantityUnit">Unit</FieldLabel>
             <OptionsSelect
               name="quantityUnit"
-              defaultValue="TON"
+              defaultValue={initialValues?.quantityUnit ?? "TON"}
               options={UNIT_OPTIONS}
             />
             <FieldError errors={state.fieldErrors.quantityUnit} />
@@ -341,7 +399,7 @@ export function WasteFlowForm({
             <FieldLabel htmlFor="frequency">Frequency</FieldLabel>
             <OptionsSelect
               name="frequency"
-              defaultValue="MONTHLY"
+              defaultValue={initialValues?.frequency ?? "MONTHLY"}
               options={FREQUENCY_OPTIONS}
             />
             <FieldError errors={state.fieldErrors.frequency} />
@@ -356,19 +414,31 @@ export function WasteFlowForm({
             <FieldLabel htmlFor="storageMethod">
               Current Storage Method
             </FieldLabel>
-            <Input id="storageMethod" name="storageMethod" />
+            <Input
+              id="storageMethod"
+              name="storageMethod"
+              defaultValue={initialValues?.storageMethod ?? undefined}
+            />
             <FieldError errors={state.fieldErrors.storageMethod} />
           </Field>
           <Field>
             <FieldLabel htmlFor="currentDestination">
               Current Destination
             </FieldLabel>
-            <Input id="currentDestination" name="currentDestination" />
+            <Input
+              id="currentDestination"
+              name="currentDestination"
+              defaultValue={initialValues?.currentDestination ?? undefined}
+            />
             <FieldError errors={state.fieldErrors.currentDestination} />
           </Field>
           <Field>
             <FieldLabel htmlFor="currentOperator">Current Operator</FieldLabel>
-            <Input id="currentOperator" name="currentOperator" />
+            <Input
+              id="currentOperator"
+              name="currentOperator"
+              defaultValue={initialValues?.currentOperator ?? undefined}
+            />
             <FieldError errors={state.fieldErrors.currentOperator} />
           </Field>
           <Field>
@@ -416,6 +486,7 @@ export function WasteFlowForm({
               <Input
                 name="locationName"
                 placeholder="e.g. Main Plant"
+                defaultValue={initialValues?.locationName ?? undefined}
               />
             )}
             <FieldError errors={state.fieldErrors.siteId} />
@@ -426,6 +497,7 @@ export function WasteFlowForm({
               id="internalCode"
               name="internalCode"
               placeholder="Optional"
+              defaultValue={initialValues?.internalCode ?? undefined}
             />
             <FieldError errors={state.fieldErrors.internalCode} />
           </Field>
@@ -447,7 +519,11 @@ export function WasteFlowForm({
         </div>
         <Field>
           <FieldLabel htmlFor="treatmentNotes">Treatment Notes</FieldLabel>
-          <Input id="treatmentNotes" name="treatmentNotes" />
+          <Input
+            id="treatmentNotes"
+            name="treatmentNotes"
+            defaultValue={initialValues?.treatmentNotes ?? undefined}
+          />
           <FieldError errors={state.fieldErrors.treatmentNotes} />
         </Field>
       </SectionCard>
@@ -456,23 +532,39 @@ export function WasteFlowForm({
       <SectionCard title="Additional Information">
         <Field>
           <FieldLabel htmlFor="recoveryNotes">Recovery Potential Notes</FieldLabel>
-          <Textarea id="recoveryNotes" name="recoveryNotes" rows={3} />
+          <Textarea
+            id="recoveryNotes"
+            name="recoveryNotes"
+            rows={3}
+            defaultValue={initialValues?.recoveryNotes ?? undefined}
+          />
           <FieldError errors={state.fieldErrors.recoveryNotes} />
         </Field>
 
         <Field>
           <FieldLabel htmlFor="notes">Notes</FieldLabel>
-          <Textarea id="notes" name="notes" rows={3} />
+          <Textarea
+            id="notes"
+            name="notes"
+            rows={3}
+            defaultValue={initialValues?.notes ?? undefined}
+          />
           <FieldError errors={state.fieldErrors.notes} />
         </Field>
 
         <div className="flex flex-wrap gap-8 pt-2">
           <FieldLabel className="flex items-center gap-2">
-            <Switch name="isHazardous" />
+            <Switch
+              name="isHazardous"
+              defaultChecked={initialValues?.isHazardous ?? false}
+            />
             <span>Hazardous material</span>
           </FieldLabel>
           <FieldLabel className="flex items-center gap-2">
-            <Switch name="isPriority" />
+            <Switch
+              name="isPriority"
+              defaultChecked={initialValues?.isPriority ?? false}
+            />
             <span>Mark as priority</span>
           </FieldLabel>
         </div>
@@ -488,7 +580,7 @@ export function WasteFlowForm({
         <Button
           variant="outline"
           nativeButton={false}
-          render={<Link href="/waste-flows">Cancel</Link>}
+          render={<Link href={cancelHref}>Cancel</Link>}
         />
         <Button type="submit" disabled={isPending}>
           {isPending ? (
@@ -496,6 +588,8 @@ export function WasteFlowForm({
               <Loader2 className="size-4 animate-spin" />
               Saving…
             </>
+          ) : isEdit ? (
+            "Save changes"
           ) : (
             "Create Waste Flow"
           )}

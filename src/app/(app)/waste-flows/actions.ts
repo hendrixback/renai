@@ -198,6 +198,145 @@ export async function createWasteFlow(
   redirect("/waste-flows");
 }
 
+export async function updateWasteFlow(
+  _prev: CreateWasteFlowState | null,
+  formData: FormData,
+): Promise<CreateWasteFlowState> {
+  const ctx = await getCurrentContext();
+  if (!ctx) {
+    return { error: "Not authenticated", fieldErrors: {} };
+  }
+
+  try {
+    requireRole(ctx, "MEMBER");
+  } catch (err) {
+    if (err instanceof ForbiddenError) {
+      return {
+        error: "You don't have permission to edit waste flows.",
+        fieldErrors: {},
+      };
+    }
+    throw err;
+  }
+
+  const id = formData.get("id");
+  if (typeof id !== "string" || id.length === 0) {
+    return { error: "Missing waste flow id", fieldErrors: {} };
+  }
+
+  // Verify ownership before any mutation.
+  const existing = await prisma.wasteFlow.findFirst({
+    where: { id, companyId: ctx.company.id, deletedAt: null },
+    select: { id: true, name: true },
+  });
+  if (!existing) {
+    return { error: "Waste flow not found", fieldErrors: {} };
+  }
+
+  const raw = Object.fromEntries(formData.entries());
+  const parsed = createSchema.safeParse({
+    ...raw,
+    isHazardous: formData.get("isHazardous") === "on",
+    isPriority: formData.get("isPriority") === "on",
+  });
+
+  if (!parsed.success) {
+    return {
+      error: "Please fix the highlighted fields.",
+      fieldErrors: parsed.error.flatten().fieldErrors as Record<
+        string,
+        string[]
+      >,
+    };
+  }
+
+  const d = parsed.data;
+
+  // Same reference checks as create — category, waste code, site.
+  if (d.categoryId) {
+    const catExists = await prisma.wasteCategory.findUnique({
+      where: { id: d.categoryId },
+      select: { id: true },
+    });
+    if (!catExists) {
+      return { error: null, fieldErrors: { categoryId: ["Unknown category."] } };
+    }
+  }
+  if (d.wasteCodeId) {
+    const codeExists = await prisma.wasteCode.findUnique({
+      where: { code: d.wasteCodeId },
+      select: { code: true, isHazardous: true },
+    });
+    if (!codeExists) {
+      return {
+        error: null,
+        fieldErrors: { wasteCodeId: ["Unknown waste code."] },
+      };
+    }
+    if (codeExists.isHazardous && !d.isHazardous) {
+      d.isHazardous = true;
+    }
+  }
+  if (d.siteId) {
+    const ownsSite = await prisma.site.findFirst({
+      where: { id: d.siteId, companyId: ctx.company.id },
+      select: { id: true },
+    });
+    if (!ownsSite) {
+      return {
+        error: null,
+        fieldErrors: { siteId: ["Unknown site for this company."] },
+      };
+    }
+  }
+
+  await prisma.wasteFlow.update({
+    where: { id: existing.id },
+    data: {
+      updatedById: ctx.user.id,
+      name: d.name,
+      description: d.description ?? null,
+      materialComposition: d.materialComposition ?? null,
+      categoryId: d.categoryId ?? null,
+      wasteCodeId: d.wasteCodeId ?? null,
+      status: d.status,
+      estimatedQuantity: d.estimatedQuantity ?? null,
+      quantityUnit: d.quantityUnit,
+      frequency: d.frequency,
+      siteId: d.siteId ?? null,
+      locationName: d.locationName ?? null,
+      storageMethod: d.storageMethod ?? null,
+      currentDestination: d.currentDestination ?? null,
+      currentOperator: d.currentOperator ?? null,
+      internalCode: d.internalCode ?? null,
+      treatmentCode: d.treatmentCode ?? null,
+      treatmentNotes: d.treatmentNotes ?? null,
+      recoveryNotes: d.recoveryNotes ?? null,
+      notes: d.notes ?? null,
+      isHazardous: d.isHazardous,
+      isPriority: d.isPriority,
+    },
+  });
+
+  await logActivity(ctx, {
+    type: "RECORD_UPDATED",
+    module: "waste-flows",
+    recordId: existing.id,
+    description:
+      existing.name === d.name
+        ? `Updated waste flow "${existing.name}"`
+        : `Renamed waste flow "${existing.name}" → "${d.name}"`,
+    metadata:
+      existing.name === d.name
+        ? null
+        : { previousName: existing.name, newName: d.name },
+  });
+
+  revalidatePath("/waste-flows");
+  revalidatePath(`/waste-flows/${existing.id}`);
+  redirect(`/waste-flows/${existing.id}`);
+}
+
 export async function deleteWasteFlow(id: string) {
   const ctx = await getCurrentContext();
   if (!ctx) return;
