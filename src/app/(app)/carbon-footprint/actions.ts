@@ -200,6 +200,123 @@ export async function registerFuelEntry(
   };
 }
 
+export async function updateFuelEntry(
+  id: string,
+  data: Record<string, string>,
+): Promise<SimpleState> {
+  const ctx = await getCurrentContext();
+  if (!ctx) {
+    return { error: "Not authenticated", success: null, fieldErrors: {} };
+  }
+
+  try {
+    requireRole(ctx, "MEMBER");
+  } catch (err) {
+    if (err instanceof ForbiddenError) {
+      return {
+        error: PERMISSION_DENIED_REGISTER,
+        success: null,
+        fieldErrors: {},
+      };
+    }
+    throw err;
+  }
+
+  const existing = await prisma.fuelEntry.findFirst({
+    where: { id, companyId: ctx.company.id, deletedAt: null },
+    select: { id: true, fuelType: true, quantity: true, unit: true },
+  });
+  if (!existing) {
+    return { error: "Entry not found", success: null, fieldErrors: {} };
+  }
+
+  const parsed = fuelSchema.safeParse(data);
+  if (!parsed.success) {
+    return {
+      error: null,
+      success: null,
+      fieldErrors: parsed.error.flatten().fieldErrors as Record<
+        string,
+        string[]
+      >,
+    };
+  }
+
+  const month = parseMonth(parsed.data.month);
+  if (!month) {
+    return {
+      error: null,
+      success: null,
+      fieldErrors: { month: ["Invalid month"] },
+    };
+  }
+
+  if (parsed.data.siteId) {
+    const owns = await prisma.site.findFirst({
+      where: { id: parsed.data.siteId, companyId: ctx.company.id },
+      select: { id: true },
+    });
+    if (!owns) {
+      return {
+        error: null,
+        success: null,
+        fieldErrors: { siteId: ["Unknown site for this company."] },
+      };
+    }
+  }
+
+  // Re-compute emissions because fuel type / quantity / region may have changed.
+  const emission = await computeFuelEmission({
+    fuelType: parsed.data.fuelType,
+    quantity: parsed.data.quantity,
+    unit: parsed.data.unit,
+    companyId: ctx.company.id,
+    region: parsed.data.region ?? "GLOBAL",
+  });
+  const factorSnapshot = await buildFactorSnapshot(emission.factorId);
+
+  await prisma.fuelEntry.update({
+    where: { id: existing.id },
+    data: {
+      updatedById: ctx.user.id,
+      siteId: parsed.data.siteId ?? null,
+      fuelType: parsed.data.fuelType,
+      unit: parsed.data.unit,
+      quantity: parsed.data.quantity,
+      month: month.date,
+      reportingYear: month.year,
+      reportingMonth: month.month,
+      locationName: parsed.data.locationName ?? null,
+      emissionFactorId: emission.factorId,
+      factorSnapshot: factorSnapshot ?? undefined,
+      kgCo2e: emission.kgCo2e,
+      notes: parsed.data.notes ?? null,
+    },
+  });
+
+  await logActivity(ctx, {
+    type: "RECORD_UPDATED",
+    module: "scope-1",
+    recordId: existing.id,
+    description: `Updated Scope 1 entry (${parsed.data.fuelType}, ${parsed.data.quantity} ${parsed.data.unit}) — ${emission.kgCo2e.toFixed(1)} kgCO₂e`,
+    metadata: {
+      fuelType: parsed.data.fuelType,
+      quantity: parsed.data.quantity,
+      unit: parsed.data.unit,
+      kgCo2e: emission.kgCo2e,
+    },
+  });
+
+  revalidatePath("/carbon-footprint", "layout");
+  revalidatePath(`/carbon-footprint/fuel/${existing.id}`);
+  refresh();
+  return {
+    error: null,
+    success: `Saved (${emission.kgCo2e.toFixed(1)} kgCO₂e).`,
+    fieldErrors: {},
+  };
+}
+
 export async function deleteFuelEntry(id: string) {
   const ctx = await getCurrentContext();
   if (!ctx) return;
@@ -370,6 +487,123 @@ export async function registerElectricityEntry(
   return {
     error: null,
     success: `Registered (market-based ${emission.marketBasedKgCo2e.toFixed(1)} kgCO₂e).`,
+    fieldErrors: {},
+  };
+}
+
+export async function updateElectricityEntry(
+  id: string,
+  data: Record<string, string>,
+): Promise<SimpleState> {
+  const ctx = await getCurrentContext();
+  if (!ctx) {
+    return { error: "Not authenticated", success: null, fieldErrors: {} };
+  }
+
+  try {
+    requireRole(ctx, "MEMBER");
+  } catch (err) {
+    if (err instanceof ForbiddenError) {
+      return {
+        error: PERMISSION_DENIED_REGISTER,
+        success: null,
+        fieldErrors: {},
+      };
+    }
+    throw err;
+  }
+
+  const existing = await prisma.electricityEntry.findFirst({
+    where: { id, companyId: ctx.company.id, deletedAt: null },
+    select: { id: true },
+  });
+  if (!existing) {
+    return { error: "Entry not found", success: null, fieldErrors: {} };
+  }
+
+  const parsed = electricitySchema.safeParse(data);
+  if (!parsed.success) {
+    return {
+      error: null,
+      success: null,
+      fieldErrors: parsed.error.flatten().fieldErrors as Record<
+        string,
+        string[]
+      >,
+    };
+  }
+
+  const month = parseMonth(parsed.data.month);
+  if (!month) {
+    return {
+      error: null,
+      success: null,
+      fieldErrors: { month: ["Invalid month"] },
+    };
+  }
+
+  if (parsed.data.siteId) {
+    const owns = await prisma.site.findFirst({
+      where: { id: parsed.data.siteId, companyId: ctx.company.id },
+      select: { id: true },
+    });
+    if (!owns) {
+      return {
+        error: null,
+        success: null,
+        fieldErrors: { siteId: ["Unknown site for this company."] },
+      };
+    }
+  }
+
+  const emission = await computeElectricityEmission({
+    kwh: parsed.data.kwh,
+    renewablePercent: parsed.data.renewablePercent ?? null,
+    companyId: ctx.company.id,
+    region: parsed.data.region ?? "EU",
+  });
+  const factorSnapshot = await buildFactorSnapshot(emission.factorId);
+
+  await prisma.electricityEntry.update({
+    where: { id: existing.id },
+    data: {
+      updatedById: ctx.user.id,
+      siteId: parsed.data.siteId ?? null,
+      kwh: parsed.data.kwh,
+      month: month.date,
+      reportingYear: month.year,
+      reportingMonth: month.month,
+      renewablePercent: parsed.data.renewablePercent ?? null,
+      energyProvider: parsed.data.energyProvider ?? null,
+      locationName: parsed.data.locationName ?? null,
+      emissionFactorId: emission.factorId,
+      factorSnapshot: factorSnapshot ?? undefined,
+      locationBasedKgCo2e: emission.locationBasedKgCo2e,
+      marketBasedKgCo2e: emission.marketBasedKgCo2e,
+      kgCo2e: emission.marketBasedKgCo2e,
+      notes: parsed.data.notes ?? null,
+    },
+  });
+
+  await logActivity(ctx, {
+    type: "RECORD_UPDATED",
+    module: "scope-2",
+    recordId: existing.id,
+    description: `Updated Scope 2 entry (${parsed.data.kwh} kWh) — market ${emission.marketBasedKgCo2e.toFixed(1)} kgCO₂e / location ${emission.locationBasedKgCo2e.toFixed(1)} kgCO₂e`,
+    metadata: {
+      kwh: parsed.data.kwh,
+      renewablePercent: parsed.data.renewablePercent ?? null,
+      locationBasedKgCo2e: emission.locationBasedKgCo2e,
+      marketBasedKgCo2e: emission.marketBasedKgCo2e,
+    },
+  });
+
+  revalidatePath("/carbon-footprint", "layout");
+  revalidatePath(`/carbon-footprint/electricity/${existing.id}`);
+  refresh();
+  return {
+    error: null,
+    success: `Saved (market-based ${emission.marketBasedKgCo2e.toFixed(1)} kgCO₂e).`,
     fieldErrors: {},
   };
 }

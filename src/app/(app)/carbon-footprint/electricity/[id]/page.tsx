@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeftIcon, ZapIcon } from "lucide-react";
+import { ArrowLeftIcon, PencilIcon, ZapIcon } from "lucide-react";
 
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -104,14 +104,27 @@ export default async function ElectricityEntryDetailPage({
           },
         ]}
         actions={
-          <Button
-            variant="outline"
-            size="sm"
-            render={<Link href="/carbon-footprint/electricity" />}
-          >
-            <ArrowLeftIcon className="mr-1.5 size-4" />
-            Back to list
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              render={<Link href="/carbon-footprint/electricity" />}
+            >
+              <ArrowLeftIcon className="mr-1.5 size-4" />
+              Back
+            </Button>
+            <Button
+              size="sm"
+              render={
+                <Link
+                  href={`/carbon-footprint/electricity/${entry.id}/edit`}
+                />
+              }
+            >
+              <PencilIcon className="mr-1.5 size-4" />
+              Edit
+            </Button>
+          </div>
         }
       />
 

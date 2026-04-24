@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeftIcon, FlameIcon } from "lucide-react";
+import { ArrowLeftIcon, FlameIcon, PencilIcon } from "lucide-react";
 
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -101,14 +101,23 @@ export default async function FuelEntryDetailPage({
           { label: "Scope 1 — Fuel", href: "/carbon-footprint/fuel" },
         ]}
         actions={
-          <Button
-            variant="outline"
-            size="sm"
-            render={<Link href="/carbon-footprint/fuel" />}
-          >
-            <ArrowLeftIcon className="mr-1.5 size-4" />
-            Back to list
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              render={<Link href="/carbon-footprint/fuel" />}
+            >
+              <ArrowLeftIcon className="mr-1.5 size-4" />
+              Back
+            </Button>
+            <Button
+              size="sm"
+              render={<Link href={`/carbon-footprint/fuel/${entry.id}/edit`} />}
+            >
+              <PencilIcon className="mr-1.5 size-4" />
+              Edit
+            </Button>
+          </div>
         }
       />
 
