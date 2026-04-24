@@ -6,10 +6,13 @@ import {
   PlusIcon,
   RecycleIcon,
   Scale3DIcon,
+  ZapIcon,
 } from "lucide-react";
 
 import { getCurrentContext } from "@/lib/auth";
+import { getCarbonSummary } from "@/lib/carbon";
 import { getDashboardData } from "@/lib/dashboard";
+import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +22,10 @@ import { InsightsAlerts } from "@/components/insights-alerts";
 import { CategoryBarChart } from "@/components/dashboard-category-chart";
 import { TreatmentDonutChart } from "@/components/dashboard-treatment-chart";
 import { DashboardRecentFlows } from "@/components/dashboard-recent-flows";
+import {
+  LatestTeamActions,
+  type TeamActionEntry,
+} from "@/components/dashboard/latest-team-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -30,9 +37,28 @@ export default async function DashboardPage() {
   const ctx = await getCurrentContext();
   if (!ctx) redirect("/login?from=/dashboard");
 
-  const data = await getDashboardData(ctx.company.id);
+  const [data, carbon, activitiesRaw] = await Promise.all([
+    getDashboardData(ctx.company.id),
+    getCarbonSummary(ctx.company.id),
+    prisma.activityLog.findMany({
+      where: { companyId: ctx.company.id },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      include: { user: { select: { name: true, email: true } } },
+    }),
+  ]);
 
   const { kpi, byCategory, byTreatment, recentFlows, alerts, meta } = data;
+  const activities: TeamActionEntry[] = activitiesRaw.map((a) => ({
+    id: a.id,
+    activityType: a.activityType,
+    module: a.module,
+    recordId: a.recordId,
+    description: a.description,
+    createdAt: a.createdAt,
+    userName: a.user?.name ?? null,
+    userEmail: a.user?.email ?? null,
+  }));
 
   return (
     <>
@@ -128,8 +154,72 @@ export default async function DashboardPage() {
           />
         </div>
 
+        {/* Carbon KPIs — Spec §7.5. Scope 3 + PEF cards land once those
+            modules are real. */}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <KpiCard
+            label="Scope 1 emissions"
+            value={
+              <>
+                {nf.format(carbon.scope1 / 1000)}
+                <span className="ml-1 text-base font-normal text-muted-foreground">
+                  tCO₂e
+                </span>
+              </>
+            }
+            caption={`${carbon.fuelEntryCount} fuel ${carbon.fuelEntryCount === 1 ? "entry" : "entries"} logged`}
+            icon={<FlameIcon />}
+            accent="warning"
+          />
+          <KpiCard
+            label="Scope 2 emissions"
+            value={
+              <>
+                {nf.format(carbon.scope2 / 1000)}
+                <span className="ml-1 text-base font-normal text-muted-foreground">
+                  tCO₂e
+                </span>
+              </>
+            }
+            caption={`${carbon.electricityEntryCount} electricity ${carbon.electricityEntryCount === 1 ? "entry" : "entries"} (market-based)`}
+            icon={<ZapIcon />}
+            accent="default"
+          />
+          <KpiCard
+            label="Waste-related CO₂e"
+            value={
+              <>
+                {nf.format(carbon.wasteCurrent / 1000)}
+                <span className="ml-1 text-base font-normal text-muted-foreground">
+                  tCO₂e
+                </span>
+              </>
+            }
+            caption="current treatment pathway"
+            icon={<RecycleIcon />}
+            accent="default"
+          />
+          <KpiCard
+            label="Total tracked footprint"
+            value={
+              <>
+                {nf.format(carbon.total / 1000)}
+                <span className="ml-1 text-base font-normal text-muted-foreground">
+                  tCO₂e
+                </span>
+              </>
+            }
+            caption="Scope 1 + Scope 2 + waste impact"
+            icon={<Scale3DIcon />}
+            accent={carbon.total > 0 ? "success" : "default"}
+          />
+        </div>
+
         {/* Alerts */}
         <InsightsAlerts alerts={alerts} />
+
+        {/* Latest team actions (Spec §7.7) */}
+        <LatestTeamActions activities={activities} />
 
         {/* Recent flows + By Category */}
         <div className="grid gap-4 lg:grid-cols-3">
