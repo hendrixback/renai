@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
@@ -7,11 +8,22 @@ import { z } from "zod";
 
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { checkLimit, limiters } from "@/lib/rate-limit";
 import {
   createSession,
   destroySession,
   readSession,
 } from "@/lib/session";
+
+async function clientIp(): Promise<string> {
+  const h = await headers();
+  const xff = h.get("x-forwarded-for");
+  if (xff) {
+    // The leftmost entry is the originating client per RFC 7239 / de facto.
+    return xff.split(",")[0]?.trim() || "unknown";
+  }
+  return h.get("x-real-ip") ?? "unknown";
+}
 
 export type LoginState = { error: string | null };
 
@@ -40,6 +52,19 @@ export async function login(
 
   if (!parsed.success) {
     return { error: "Email and password are required" };
+  }
+
+  const ip = await clientIp();
+  const limit = checkLimit(limiters.login, ip);
+  if (!limit.allowed) {
+    logger.warn("Login rate-limited", {
+      event: "auth.login.rate_limited",
+      ip,
+      retryAfterSec: Math.ceil(limit.retryAfterMs / 1000),
+    });
+    return {
+      error: "Too many login attempts. Please try again in a few minutes.",
+    };
   }
 
   const { email, password } = parsed.data;

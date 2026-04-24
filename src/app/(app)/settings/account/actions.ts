@@ -8,6 +8,7 @@ import { logActivity } from "@/lib/activity/log-activity";
 import { getCurrentContext, getCurrentUser } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { checkLimit, limiters } from "@/lib/rate-limit";
 
 export type AccountState = {
   error: string | null;
@@ -85,6 +86,23 @@ export async function changePassword(
   const user = await getCurrentUser();
   if (!user) {
     return { error: "Not authenticated", success: null, fieldErrors: {} };
+  }
+
+  // Rate-limit by user id to thwart a compromised-session attacker
+  // hammering the change-password endpoint to enumerate the current
+  // password.
+  const limit = checkLimit(limiters.passwordChange, user.id);
+  if (!limit.allowed) {
+    logger.warn("Password change rate-limited", {
+      event: "auth.password.rate_limited",
+      userId: user.id,
+    });
+    return {
+      error:
+        "Too many password change attempts. Please wait before trying again.",
+      success: null,
+      fieldErrors: {},
+    };
   }
 
   const parsed = passwordSchema.safeParse({
