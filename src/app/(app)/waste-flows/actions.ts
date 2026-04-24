@@ -337,6 +337,54 @@ export async function updateWasteFlow(
   redirect(`/waste-flows/${existing.id}`);
 }
 
+/**
+ * Archives an active waste flow — soft retirement that keeps historical
+ * data intact and re-filterable. Distinct from `deleteWasteFlow`, which
+ * is destructive and ADMIN-only. MEMBER+ may archive (Amendment A9).
+ */
+export async function archiveWasteFlow(id: string) {
+  const ctx = await getCurrentContext();
+  if (!ctx) return;
+
+  try {
+    requireRole(ctx, "MEMBER");
+  } catch (err) {
+    if (err instanceof ForbiddenError) return;
+    throw err;
+  }
+
+  const target = await prisma.wasteFlow.findFirst({
+    where: { id, companyId: ctx.company.id },
+    select: { id: true, name: true, status: true },
+  });
+  if (!target) return;
+  if (target.status === "ARCHIVED") return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.wasteFlow.update({
+      where: { id: target.id },
+      data: {
+        status: "ARCHIVED",
+        updatedById: ctx.user.id,
+      },
+    });
+    await logActivity(
+      ctx,
+      {
+        type: "RECORD_STATUS_CHANGED",
+        module: "waste-flows",
+        recordId: target.id,
+        description: `Archived waste flow "${target.name}"`,
+        metadata: { from: target.status, to: "ARCHIVED" },
+      },
+      tx,
+    );
+  });
+
+  revalidatePath("/waste-flows");
+  revalidatePath(`/waste-flows/${target.id}`);
+}
+
 export async function deleteWasteFlow(id: string) {
   const ctx = await getCurrentContext();
   if (!ctx) return;

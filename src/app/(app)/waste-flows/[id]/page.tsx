@@ -19,6 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
+import { WasteFlowArchiveButton } from "@/components/waste-flow-archive-button";
 import { WasteFlowDeleteButton } from "@/components/waste-flow-delete-button";
 import { DocumentAttachments } from "@/components/documentation/document-attachments";
 import { ActivityHistoryList } from "@/components/activity-history-list";
@@ -98,6 +99,9 @@ export default async function WasteFlowDetailPage({
                 </Link>
               }
             />
+            {flow.status !== "ARCHIVED" ? (
+              <WasteFlowArchiveButton id={flow.id} name={flow.name} />
+            ) : null}
             <WasteFlowDeleteButton id={flow.id} name={flow.name} />
           </>
         }
