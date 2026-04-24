@@ -20,6 +20,7 @@ Dockerfile CMD (`prisma migrate deploy && node server.js`).
 Applying migration `20260424_phase1_foundation`
 Applying migration `20260424_documentation`
 Applying migration `20260424_scope2_dual_calc`
+Applying migration `20260424_scope1_emission_source_type`
 ✓ Migrations up to date. Starting server…
 ```
 

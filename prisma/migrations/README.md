@@ -19,6 +19,7 @@ landed on any environment.
 | 0002 | `phase1_foundation` | Audit primitives: `ActivityLog` + `ActivityType` + `RecordStatus` enums, `FactorRevision` entity, `createdById`/`updatedById`/`deletedAt` on operational records, `reportingYear`/`reportingMonth` denormalised fields, `baselineYear` on Company, `lastActiveAt` on User, `revokedAt` on Invitation, `factorSnapshot` Json on fuel/electricity entries. | zero-downtime (all additions nullable or defaulted) | **no — will apply on next deploy** |
 | 0003 | `documentation` | Documentation module: `Document` entity, `DocumentLink` polymorphic join, `DocumentType` enum. | zero-downtime (new tables only) | **no — will apply on next deploy** |
 | 0004 | `scope2_dual_calc` | Adds `locationBasedKgCo2e` + `marketBasedKgCo2e` to `ElectricityEntry` for GHG-Protocol-compliant dual accounting. Legacy `kgCo2e` preserved; new rows mirror `marketBasedKgCo2e` into it. | zero-downtime (2 nullable columns) | **no — will apply on next deploy** |
+| 0005 | `scope1_emission_source_type` | Adds `EmissionSourceType` enum (11 values per Spec §10.4) + nullable `emissionSourceType` column on FuelEntry. Independent from fuel type — the same fuel can be burned in different source contexts for audit reporting. | zero-downtime (enum add + nullable column) | **no — will apply on next deploy** |
 
 ---
 
