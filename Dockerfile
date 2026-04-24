@@ -55,4 +55,18 @@ RUN npm install --no-save --no-audit --no-fund prisma@7.7.0 \
 USER nextjs
 EXPOSE 3000
 
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node server.js"]
+# Run pending Prisma migrations before starting the Next.js server.
+# `migrate deploy` is idempotent — already-applied migrations are skipped
+# via the `_prisma_migrations` tracking table. If a migration fails the
+# container exits non-zero and Railway retries per railway.toml
+# (restartPolicyType = ON_FAILURE, max 3 retries), then surfaces a clear
+# failure in the deploy log.
+#
+# `exec` replaces the shell process with node.js so PID 1 is the real
+# server (required for clean SIGTERM shutdown on redeploy).
+CMD ["sh", "-c", "\
+echo '▶ Running database migrations…' \
+&& ./node_modules/.bin/prisma migrate deploy \
+&& echo '✓ Migrations up to date. Starting server…' \
+&& exec node server.js \
+"]
