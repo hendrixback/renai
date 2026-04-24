@@ -33,6 +33,8 @@ model User {
   updatedFuelEntries        FuelEntry[]        @relation("FuelEntryUpdatedBy")
   createdElectricityEntries ElectricityEntry[] @relation("ElectricityEntryCreatedBy")
   updatedElectricityEntries ElectricityEntry[] @relation("ElectricityEntryUpdatedBy")
+  uploadedDocuments         Document[]         @relation("DocumentUploadedBy")
+  linkedDocuments           DocumentLink[]     @relation("DocumentLinkLinkedBy")
   activityLogs              ActivityLog[]
   importedFactorRevisions   FactorRevision[]   @relation("FactorRevisionImporter")
 
@@ -62,6 +64,7 @@ model Company {
   fuelEntries        FuelEntry[]
   electricityEntries ElectricityEntry[]
   emissionFactors    EmissionFactor[]
+  documents          Document[]
   activityLogs       ActivityLog[]
   factorRevisions    FactorRevision[]
 }
@@ -133,6 +136,7 @@ model Site {
   wasteFlows         WasteFlow[]
   fuelEntries        FuelEntry[]
   electricityEntries ElectricityEntry[]
+  documents          Document[]
 
   @@index([companyId])
   @@index([deletedAt])
@@ -476,4 +480,90 @@ enum RecordStatus {
   DRAFT
   ACTIVE
   ARCHIVED
+}
+
+// ─── Documentation (Spec §15) ────────────────────────────────────
+
+/// Central repository of uploaded files. Metadata lives here; bytes live
+/// in object storage via lib/storage (ADR-001). Each Document can be
+/// attached to many records across modules via DocumentLink (ADR-006).
+model Document {
+  id           String  @id @default(cuid())
+  companyId    String
+  uploadedById String?
+  plantId      String?
+
+  // File metadata — mirrors what lib/storage returns after upload.
+  filename         String // sanitised filename as persisted
+  originalFilename String // what the user uploaded as
+  mimeType         String
+  size             Int // bytes
+  storageKey       String // opaque pointer returned by StorageBackend.upload
+
+  // Classification & context
+  documentType   DocumentType @default(OTHER)
+  title          String? // user-editable; falls back to originalFilename
+  description    String?
+  tags           String[]     @default([])
+  department     String?
+  reportingYear  Int?
+  reportingMonth Int?
+
+  // Simple versioning (Spec §15.14: "keep simple for MVP").
+  version Int @default(1)
+
+  recordStatus RecordStatus @default(ACTIVE)
+  deletedAt    DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  company    Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  uploadedBy User?          @relation("DocumentUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+  plant      Site?          @relation(fields: [plantId], references: [id], onDelete: SetNull)
+  links      DocumentLink[]
+
+  @@index([companyId, createdAt])
+  @@index([companyId, documentType])
+  @@index([companyId, reportingYear])
+  @@index([companyId, plantId])
+  @@index([recordStatus])
+  @@index([deletedAt])
+  @@index([storageKey])
+}
+
+/// Polymorphic join table — one document can back many records across
+/// different modules (ADR-006). Example: a single "electricity bill PDF"
+/// attached to a Scope 2 entry AND a Production Intensity record AND a
+/// Regulation (as evidence of compliance).
+model DocumentLink {
+  id         String   @id @default(cuid())
+  documentId String
+  module     String // "waste-flows" | "scope-1" | "scope-2" | "scope-3" | "production" | "regulation" | "account"
+  recordId   String
+  linkedById String?
+  createdAt  DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  linkedBy User?    @relation("DocumentLinkLinkedBy", fields: [linkedById], references: [id], onDelete: SetNull)
+
+  @@unique([documentId, module, recordId])
+  @@index([module, recordId])
+  @@index([documentId])
+}
+
+enum DocumentType {
+  INVOICE
+  WASTE_CERTIFICATE
+  COLLECTION_RECEIPT
+  FUEL_BILL
+  ELECTRICITY_BILL
+  SUPPLIER_DOCUMENT
+  INTERNAL_REPORT
+  AUDIT_EVIDENCE
+  ENVIRONMENTAL_LICENSE
+  CONTRACT
+  EMISSIONS_EVIDENCE
+  PRODUCTION_REPORT
+  REGULATORY_FILE
+  OTHER
 }
