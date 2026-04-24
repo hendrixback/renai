@@ -7,9 +7,11 @@ import { logActivity } from "@/lib/activity/log-activity";
 import { getCurrentContext } from "@/lib/auth";
 import { ForbiddenError, requireRole } from "@/lib/auth/require-role";
 import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
 import {
   createDocumentSchema,
   documentModuleSchema,
+  updateDocumentSchema,
   type DocumentModule,
 } from "@/lib/schemas/document.schema";
 import { DocumentService } from "@/lib/services/documents";
@@ -214,6 +216,118 @@ export async function uploadDocument(
   redirect(
     safeRedirect ?? (link ? pathForModule(link.module) : "/documentation"),
   );
+}
+
+export type UpdateDocumentState = {
+  error: string | null;
+  success: string | null;
+  fieldErrors: Record<string, string[]>;
+};
+
+const UPDATE_EMPTY: UpdateDocumentState = {
+  error: null,
+  success: null,
+  fieldErrors: {},
+};
+
+/**
+ * Edit metadata on an existing document. Called via the Atlas pattern from
+ * the edit dialog: no FormData, no native `<form>` inside the portal —
+ * the client component passes a plain object, the action returns state.
+ */
+export async function updateDocument(
+  input: Record<string, unknown>,
+): Promise<UpdateDocumentState> {
+  const ctx = await getCurrentContext();
+  if (!ctx) return { ...UPDATE_EMPTY, error: "Not authenticated" };
+
+  try {
+    requireRole(ctx, "MEMBER");
+  } catch (err) {
+    if (err instanceof ForbiddenError) {
+      return { ...UPDATE_EMPTY, error: PERMISSION_DENIED };
+    }
+    throw err;
+  }
+
+  const parsed = updateDocumentSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ...UPDATE_EMPTY,
+      fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  const existing = await DocumentService.findByIdForTenant(
+    ctx,
+    parsed.data.documentId,
+  );
+  if (!existing) return { ...UPDATE_EMPTY, error: "Document not found" };
+
+  // Tracking what actually changed lets the audit log carry a precise diff
+  // instead of a vague "updated metadata" line. Operators reading the
+  // history should see *what* field moved.
+  const before: Record<string, unknown> = {
+    title: existing.title,
+    description: existing.description,
+    tags: existing.tags,
+    documentType: existing.documentType,
+    department: existing.department,
+    reportingYear: existing.reportingYear,
+    reportingMonth: existing.reportingMonth,
+    plantId: existing.plantId,
+  };
+  const after: Record<string, unknown> = {
+    title: parsed.data.title ?? null,
+    description: parsed.data.description ?? null,
+    tags: parsed.data.tags,
+    documentType: parsed.data.documentType ?? existing.documentType,
+    department: parsed.data.department ?? null,
+    reportingYear: parsed.data.reportingYear ?? null,
+    reportingMonth: parsed.data.reportingMonth ?? null,
+    plantId: parsed.data.plantId ?? null,
+  };
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.document.update({
+        where: { id: existing.id },
+        data: {
+          title: parsed.data.title ?? null,
+          description: parsed.data.description ?? null,
+          tags: parsed.data.tags,
+          documentType: parsed.data.documentType ?? existing.documentType,
+          department: parsed.data.department ?? null,
+          reportingYear: parsed.data.reportingYear ?? null,
+          reportingMonth: parsed.data.reportingMonth ?? null,
+          plantId: parsed.data.plantId ?? null,
+        },
+      });
+      await logActivity(
+        ctx,
+        {
+          type: "RECORD_UPDATED",
+          module: "documentation",
+          recordId: existing.id,
+          description: `Updated metadata for "${existing.originalFilename}"`,
+          metadata: { before, after },
+        },
+        tx,
+      );
+    });
+  } catch (err) {
+    logger.error("Document metadata update failed", err, {
+      companyId: ctx.company.id,
+      userId: ctx.user.id,
+      documentId: existing.id,
+    });
+    return { ...UPDATE_EMPTY, error: "Update failed. Please try again." };
+  }
+
+  revalidatePath("/documentation");
+  revalidatePath(`/documentation/${existing.id}`);
+
+  return { ...UPDATE_EMPTY, success: "Document metadata updated." };
 }
 
 export async function deleteDocument(documentId: string) {

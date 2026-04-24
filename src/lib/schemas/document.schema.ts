@@ -104,3 +104,41 @@ export const linkDocumentSchema = z.object({
 });
 
 export type LinkDocumentInput = z.infer<typeof linkDocumentSchema>;
+
+/**
+ * Editable fields after upload. Filename, MIME type, size, and storage
+ * pointer are intentionally immutable — changing them would orphan the
+ * stored bytes or desync the audit trail.
+ */
+export const updateDocumentSchema = z.object({
+  documentId: z.string().cuid(),
+  title: z
+    .string()
+    .trim()
+    .max(200)
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : undefined)),
+  description: z
+    .string()
+    .trim()
+    .max(2000)
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : undefined)),
+  tags: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
+  documentType: documentTypeSchema.optional(),
+  department: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : undefined)),
+  reportingYear: z.number().int().gte(2000).lte(2100).optional(),
+  reportingMonth: z.number().int().gte(1).lte(12).optional(),
+  plantId: z
+    .string()
+    .cuid()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : undefined)),
+});
+
+export type UpdateDocumentInput = z.infer<typeof updateDocumentSchema>;

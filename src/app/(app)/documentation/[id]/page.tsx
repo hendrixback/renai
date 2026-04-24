@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
 import { DocumentPreview } from "@/components/documentation/document-preview";
+import { EditDocumentDialog } from "@/components/documentation/edit-document-dialog";
 import { ActivityHistoryList } from "@/components/activity-history-list";
 
 export const dynamic = "force-dynamic";
@@ -73,7 +74,7 @@ export default async function DocumentDetailPage({
   const doc = await DocumentService.findByIdForTenant(ctx, id);
   if (!doc) notFound();
 
-  const [links, uploadedBy, plant] = await Promise.all([
+  const [links, uploadedBy, plant, sites] = await Promise.all([
     DocumentService.listLinksForDocument(ctx, doc.id),
     doc.uploadedById
       ? prisma.user.findUnique({
@@ -87,6 +88,11 @@ export default async function DocumentDetailPage({
           select: { name: true },
         })
       : Promise.resolve(null),
+    prisma.site.findMany({
+      where: { companyId: ctx.company.id, deletedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   const title = doc.title ?? doc.originalFilename;
@@ -109,6 +115,20 @@ export default async function DocumentDetailPage({
               <DownloadIcon className="mr-1.5 size-4" />
               Download
             </Button>
+            <EditDocumentDialog
+              document={{
+                id: doc.id,
+                title: doc.title,
+                description: doc.description,
+                tags: doc.tags,
+                documentType: doc.documentType,
+                department: doc.department,
+                reportingYear: doc.reportingYear,
+                reportingMonth: doc.reportingMonth,
+                plantId: doc.plantId,
+              }}
+              sites={sites}
+            />
             {canDelete ? (
               <form
                 action={async () => {
