@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
 import { DocumentAttachments } from "@/components/documentation/document-attachments";
+import { ActivityHistoryList } from "@/components/activity-history-list";
 
 export const dynamic = "force-dynamic";
 
@@ -253,6 +254,9 @@ export default async function FuelEntryDetailPage({
           recordId={entry.id}
           redirectTo={`/carbon-footprint/fuel/${entry.id}`}
         />
+
+        {/* Activity history */}
+        <ActivityHistoryList module="scope-1" recordId={entry.id} />
 
         {/* Metadata footer */}
         <div className="flex flex-wrap justify-between gap-3 pt-2 text-xs text-muted-foreground">

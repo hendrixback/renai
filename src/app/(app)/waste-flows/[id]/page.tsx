@@ -21,6 +21,7 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { WasteFlowDeleteButton } from "@/components/waste-flow-delete-button";
 import { DocumentAttachments } from "@/components/documentation/document-attachments";
+import { ActivityHistoryList } from "@/components/activity-history-list";
 
 export const dynamic = "force-dynamic";
 
@@ -280,6 +281,9 @@ export default async function WasteFlowDetailPage({
           recordId={flow.id}
           redirectTo={`/waste-flows/${flow.id}`}
         />
+
+        {/* Activity history */}
+        <ActivityHistoryList module="waste-flows" recordId={flow.id} />
 
         {/* Metadata */}
         <div className="flex flex-wrap justify-between gap-3 pt-2 text-xs text-muted-foreground">

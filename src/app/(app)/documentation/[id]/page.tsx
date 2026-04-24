@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
 import { DocumentPreview } from "@/components/documentation/document-preview";
+import { ActivityHistoryList } from "@/components/activity-history-list";
 
 export const dynamic = "force-dynamic";
 
@@ -246,6 +247,9 @@ export default async function DocumentDetailPage({
             </Card>
           </div>
         </div>
+
+        {/* Activity history */}
+        <ActivityHistoryList module="documentation" recordId={doc.id} />
       </div>
     </>
   );
