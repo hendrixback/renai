@@ -459,6 +459,7 @@ enum ActivityType {
   IMPERSONATION_ENDED
   COMPANY_CREATED
   COMPANY_UPDATED
+  RECORD_EXPORTED
 }
 
 // ─── Factor Versioning (ADR-008) ─────────────────────────────────

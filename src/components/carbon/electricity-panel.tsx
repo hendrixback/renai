@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table"
 import { DeleteElectricityEntryButton } from "@/components/carbon/delete-entry-button"
 import { RegisterElectricityDialog } from "@/components/carbon/register-electricity-dialog"
+import { ExportMenu } from "@/components/export-menu"
 
 type Site = { id: string; name: string }
 
@@ -61,7 +62,10 @@ export function ElectricityPanel({
             %).
           </p>
         </div>
-        <RegisterElectricityDialog sites={sites} />
+        <div className="flex items-center gap-2">
+          <ExportMenu basePath="/carbon-footprint/electricity/export" />
+          <RegisterElectricityDialog sites={sites} />
+        </div>
       </div>
 
       <Card className="gap-0 overflow-hidden">

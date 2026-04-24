@@ -4,67 +4,25 @@ import { PlusIcon } from "lucide-react";
 
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@/generated/prisma/client";
+import { buildWasteFlowsWhere, type WasteFlowListSearchParams } from "@/lib/waste-flows";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
+import { ExportMenu, serializeSearchParams } from "@/components/export-menu";
 import { WasteFlowsFilters } from "@/components/waste-flows-filters";
 import { WasteFlowsTable } from "@/components/waste-flows-table";
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = {
-  q?: string;
-  category?: string;
-  status?: string;
-  site?: string;
-  hazardous?: string;
-  priority?: string;
-};
-
-const VALID_STATUS = ["ACTIVE", "INACTIVE", "ARCHIVED"] as const;
-
 export default async function WasteFlowsPage({
   searchParams,
 }: {
-  searchParams: Promise<SearchParams>;
+  searchParams: Promise<WasteFlowListSearchParams>;
 }) {
   const ctx = await getCurrentContext();
   if (!ctx) redirect("/login?from=/waste-flows");
 
   const params = await searchParams;
-
-  const where: Prisma.WasteFlowWhereInput = {
-    companyId: ctx.company.id,
-  };
-
-  if (params.category) {
-    where.category = { slug: params.category };
-  }
-  if (
-    params.status &&
-    (VALID_STATUS as readonly string[]).includes(params.status)
-  ) {
-    where.status = params.status as (typeof VALID_STATUS)[number];
-  }
-  if (params.site) {
-    where.siteId = params.site;
-  }
-  if (params.hazardous === "true") {
-    where.isHazardous = true;
-  }
-  if (params.priority === "true") {
-    where.isPriority = true;
-  }
-  if (params.q) {
-    const q = params.q.trim();
-    if (q.length > 0) {
-      where.OR = [
-        { name: { contains: q, mode: "insensitive" } },
-        { description: { contains: q, mode: "insensitive" } },
-        { materialComposition: { contains: q, mode: "insensitive" } },
-      ];
-    }
-  }
+  const where = buildWasteFlowsWhere(params, ctx.company.id);
 
   const [flows, categories, sites, totalCount] = await Promise.all([
     prisma.wasteFlow.findMany({
@@ -109,16 +67,22 @@ export default async function WasteFlowsPage({
       <PageHeader
         title="Waste Flows"
         actions={
-          <Button
-            size="sm"
-            nativeButton={false}
-            render={
-              <Link href="/waste-flows/new">
-                <PlusIcon className="size-4" />
-                New Waste Flow
-              </Link>
-            }
-          />
+          <>
+            <ExportMenu
+              basePath="/waste-flows/export"
+              searchString={serializeSearchParams(params)}
+            />
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={
+                <Link href="/waste-flows/new">
+                  <PlusIcon className="size-4" />
+                  New Waste Flow
+                </Link>
+              }
+            />
+          </>
         }
       />
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">

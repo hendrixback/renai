@@ -1,0 +1,31 @@
+-- Migration: 0006_activity_type_record_exported
+--
+-- WHAT:
+--   Adds RECORD_EXPORTED to the ActivityType enum so export route handlers
+--   (Waste Flows / Scope 1 / Scope 2 / Documentation) can audit-log data
+--   extractions. Metadata on each log row captures format (csv|xlsx|pdf),
+--   applied filters, and row count.
+--
+-- WHY:
+--   Audit-readiness is a stated customer value in Spec §4.2, §8.2, §15.15.
+--   Exports are the primary way data leaves the system; without a log line
+--   we cannot prove who extracted what for an audit trail.
+--
+-- SAFETY:
+--   Zero-downtime. Enum value is additive; no existing rows reference it;
+--   Postgres allows enum ADDs in a regular transaction (unlike ALTER TYPE
+--   DROP).
+--
+-- ROLLBACK:
+--   -- Postgres does not support DROP VALUE for enum types. To remove the
+--   -- value, recreate the enum:
+--   --   ALTER TABLE "ActivityLog" ALTER COLUMN "activityType" TYPE text;
+--   --   DROP TYPE "ActivityType";
+--   --   CREATE TYPE "ActivityType" AS ENUM (...original 22 values...);
+--   --   ALTER TABLE "ActivityLog" ALTER COLUMN "activityType"
+--   --     TYPE "ActivityType" USING "activityType"::"ActivityType";
+--   --   (expect all RECORD_EXPORTED rows to fail the cast — delete them
+--   --    first if rollback is attempted.)
+
+-- AlterEnum
+ALTER TYPE "ActivityType" ADD VALUE 'RECORD_EXPORTED';

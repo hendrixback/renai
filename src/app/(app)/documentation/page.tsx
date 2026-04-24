@@ -8,6 +8,7 @@ import { documentTypeSchema } from "@/lib/schemas/document.schema";
 import { DocumentService } from "@/lib/services/documents";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
+import { ExportMenu, serializeSearchParams } from "@/components/export-menu";
 import { DocumentsFilters } from "@/components/documentation/documents-filters";
 import { DocumentsList } from "@/components/documentation/documents-list";
 
@@ -62,10 +63,16 @@ export default async function DocumentationPage({
       <PageHeader
         title="Documentation"
         actions={
-          <Button size="sm" render={<Link href="/documentation/new" />}>
-            <PlusIcon className="mr-1.5 size-4" />
-            Upload document
-          </Button>
+          <>
+            <ExportMenu
+              basePath="/documentation/export"
+              searchString={serializeSearchParams(sp)}
+            />
+            <Button size="sm" render={<Link href="/documentation/new" />}>
+              <PlusIcon className="mr-1.5 size-4" />
+              Upload document
+            </Button>
+          </>
         }
       />
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">

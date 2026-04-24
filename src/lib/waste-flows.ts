@@ -1,6 +1,87 @@
 // Shared enum <-> label maps for WasteFlow fields. Kept in one place so the
 // filter bar, table, and form all stay in sync.
 
+import type { Prisma } from "@/generated/prisma/client";
+
+export type WasteFlowListSearchParams = {
+  q?: string | null;
+  category?: string | null;
+  status?: string | null;
+  site?: string | null;
+  hazardous?: string | null;
+  priority?: string | null;
+};
+
+const VALID_STATUS = ["ACTIVE", "INACTIVE", "ARCHIVED"] as const;
+
+/**
+ * Builds the Prisma where-clause used by both the list page and the
+ * export route so filters stay symmetric.
+ */
+export function buildWasteFlowsWhere(
+  params: WasteFlowListSearchParams,
+  companyId: string,
+): Prisma.WasteFlowWhereInput {
+  const where: Prisma.WasteFlowWhereInput = { companyId };
+
+  if (params.category) {
+    where.category = { slug: params.category };
+  }
+  if (params.status && (VALID_STATUS as readonly string[]).includes(params.status)) {
+    where.status = params.status as (typeof VALID_STATUS)[number];
+  }
+  if (params.site) {
+    where.siteId = params.site;
+  }
+  if (params.hazardous === "true") {
+    where.isHazardous = true;
+  }
+  if (params.priority === "true") {
+    where.isPriority = true;
+  }
+  if (params.q) {
+    const q = params.q.trim();
+    if (q.length > 0) {
+      where.OR = [
+        { name: { contains: q, mode: "insensitive" } },
+        { description: { contains: q, mode: "insensitive" } },
+        { materialComposition: { contains: q, mode: "insensitive" } },
+      ];
+    }
+  }
+
+  return where;
+}
+
+/**
+ * Describes the filter set, useful as export subtitle so an audit reader
+ * knows which data slice a given file corresponds to.
+ */
+export function describeWasteFlowFilters(
+  params: WasteFlowListSearchParams,
+  lookups: {
+    categories: ReadonlyArray<{ slug: string; name: string }>;
+    sites: ReadonlyArray<{ id: string; name: string }>;
+  },
+): string | undefined {
+  const parts: string[] = [];
+  if (params.q) parts.push(`Search: "${params.q.trim()}"`);
+  if (params.category) {
+    const match = lookups.categories.find((c) => c.slug === params.category);
+    parts.push(`Category: ${match?.name ?? params.category}`);
+  }
+  if (params.status && (VALID_STATUS as readonly string[]).includes(params.status)) {
+    parts.push(`Status: ${params.status}`);
+  }
+  if (params.site) {
+    const match = lookups.sites.find((s) => s.id === params.site);
+    parts.push(`Site: ${match?.name ?? params.site}`);
+  }
+  if (params.hazardous === "true") parts.push("Hazardous only");
+  if (params.priority === "true") parts.push("Priority only");
+  return parts.length ? `Filters — ${parts.join(" · ")}` : undefined;
+}
+
 export const STATUS_OPTIONS = [
   { value: "ACTIVE", label: "Active" },
   { value: "INACTIVE", label: "Inactive" },

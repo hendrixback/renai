@@ -20,6 +20,7 @@ landed on any environment.
 | 0003 | `documentation` | Documentation module: `Document` entity, `DocumentLink` polymorphic join, `DocumentType` enum. | zero-downtime (new tables only) | **no — will apply on next deploy** |
 | 0004 | `scope2_dual_calc` | Adds `locationBasedKgCo2e` + `marketBasedKgCo2e` to `ElectricityEntry` for GHG-Protocol-compliant dual accounting. Legacy `kgCo2e` preserved; new rows mirror `marketBasedKgCo2e` into it. | zero-downtime (2 nullable columns) | **no — will apply on next deploy** |
 | 0005 | `scope1_emission_source_type` | Adds `EmissionSourceType` enum (11 values per Spec §10.4) + nullable `emissionSourceType` column on FuelEntry. Independent from fuel type — the same fuel can be burned in different source contexts for audit reporting. | zero-downtime (enum add + nullable column) | **no — will apply on next deploy** |
+| 0006 | `activity_type_record_exported` | Adds `RECORD_EXPORTED` to the `ActivityType` enum so export route handlers can audit-log extractions (format + filters + row count in metadata). | zero-downtime (enum value add) | **no — will apply on next deploy** |
 
 ---
 
@@ -34,7 +35,7 @@ landed on any environment.
    `railway.toml` (ON_FAILURE, max 3 retries) then the deploy fails
    with the migration error visible in the deploy log.
 
-Each of migrations 0002–0004 is **additive** (new columns / tables /
+Each of migrations 0002–0006 is **additive** (new columns / tables /
 enums, no column drops, no type changes). Apply time on a small table
 (Maxtil-scale) is sub-second. Application code continues to work
 against the old schema during the brief window between container

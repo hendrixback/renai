@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table"
 import { DeleteFuelEntryButton } from "@/components/carbon/delete-entry-button"
 import { RegisterFuelDialog } from "@/components/carbon/register-fuel-dialog"
+import { ExportMenu } from "@/components/export-menu"
 
 type Site = { id: string; name: string }
 
@@ -52,7 +53,10 @@ export function FuelPanel({
             Direct emissions from owned sources (vehicles, boilers, generators).
           </p>
         </div>
-        <RegisterFuelDialog sites={sites} />
+        <div className="flex items-center gap-2">
+          <ExportMenu basePath="/carbon-footprint/fuel/export" />
+          <RegisterFuelDialog sites={sites} />
+        </div>
       </div>
 
       <Card className="gap-0 overflow-hidden">
