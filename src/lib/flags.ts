@@ -1,11 +1,14 @@
-import "server-only";
-
 /**
  * Feature flags (ADR-010).
  *
  * Env-based, per-deployment. No external service — simple and free, with
  * the upgrade path to per-tenant overrides (new `FeatureOverride` table)
  * when that becomes necessary.
+ *
+ * Intentionally NOT server-only: all values are `NEXT_PUBLIC_FLAG_*` env
+ * vars that Next.js inlines at build time, so the same import works in
+ * client components (sidebar navigation gating) and server components
+ * (route-level notFound()) alike.
  *
  * Usage:
  *   import { flags } from "@/lib/flags";

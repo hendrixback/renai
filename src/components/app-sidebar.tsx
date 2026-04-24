@@ -3,13 +3,17 @@
 import * as React from "react"
 import {
   BarChart3Icon,
+  BookOpenIcon,
   FileTextIcon,
   LayoutDashboardIcon,
   LeafIcon,
   RecycleIcon,
   SettingsIcon,
   ShieldIcon,
+  UsersIcon,
 } from "lucide-react"
+
+import { flags } from "@/lib/flags"
 
 import { CompanySwitcher } from "@/components/company-switcher"
 import { NavMain, type NavItem } from "@/components/nav-main"
@@ -42,18 +46,62 @@ type SidebarCompany = {
   role: string
 }
 
-const navMain: NavItem[] = [
-  { title: "Dashboard", url: "/dashboard", icon: <LayoutDashboardIcon /> },
-  { title: "Waste Flows", url: "/waste-flows", icon: <RecycleIcon /> },
-  {
-    title: "Carbon Footprint",
-    url: "/carbon-footprint",
-    icon: <LeafIcon />,
-  },
-  { title: "Documentation", url: "/documentation", icon: <FileTextIcon /> },
-  { title: "Reporting", url: "/reporting", icon: <BarChart3Icon /> },
-  { title: "Settings", url: "/settings", icon: <SettingsIcon /> },
-]
+/**
+ * Canonical nav order per Spec §6.2:
+ *   Dashboard → Waste Flows → Carbon Footprint → Analysis → Documentation
+ *             → Regulations → Team Overview
+ *
+ * Unreleased modules (Analysis, Regulations, Team Overview) are
+ * flag-gated so production only shows what actually works. The legacy
+ * Reporting slot stays visible until Analysis flips on — both routes
+ * coexist so there's always at least one "analyse" entry point.
+ */
+function buildNavItems(): NavItem[] {
+  const items: NavItem[] = [
+    { title: "Dashboard", url: "/dashboard", icon: <LayoutDashboardIcon /> },
+    { title: "Waste Flows", url: "/waste-flows", icon: <RecycleIcon /> },
+    {
+      title: "Carbon Footprint",
+      url: "/carbon-footprint",
+      icon: <LeafIcon />,
+    },
+  ]
+
+  if (flags.analysisEnabled) {
+    items.push({ title: "Analysis", url: "/analysis", icon: <BarChart3Icon /> })
+  } else {
+    // Legacy stub — keep until /analysis is real, so the sidebar never
+    // has an empty "analyse your data" slot.
+    items.push({ title: "Reporting", url: "/reporting", icon: <BarChart3Icon /> })
+  }
+
+  if (flags.documentationEnabled) {
+    items.push({
+      title: "Documentation",
+      url: "/documentation",
+      icon: <FileTextIcon />,
+    })
+  }
+
+  if (flags.regulationsEnabled) {
+    items.push({
+      title: "Regulations",
+      url: "/regulations",
+      icon: <BookOpenIcon />,
+    })
+  }
+
+  if (flags.teamOverviewEnabled) {
+    items.push({
+      title: "Team Overview",
+      url: "/team-overview",
+      icon: <UsersIcon />,
+    })
+  }
+
+  items.push({ title: "Settings", url: "/settings", icon: <SettingsIcon /> })
+  return items
+}
 
 export function AppSidebar({
   user,
@@ -70,6 +118,7 @@ export function AppSidebar({
   const pathname = usePathname()
   const showAdminLink = user.role === "ADMIN"
   const adminActive = pathname.startsWith("/admin")
+  const navMain = React.useMemo(() => buildNavItems(), [])
 
   // When impersonating, show the active company in the switcher list too so
   // the user can see and exit — the "exit" button in the impersonation
