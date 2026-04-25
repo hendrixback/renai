@@ -2,6 +2,8 @@ import Link from "next/link"
 import * as React from "react"
 
 import { getCurrentContext } from "@/lib/auth"
+import { flags } from "@/lib/flags"
+import { getTaskSummary } from "@/lib/tasks"
 import { HeaderNotifications } from "@/components/header-notifications"
 import { HeaderUserMenu } from "@/components/header-user-menu"
 import { ModeToggle } from "@/components/mode-toggle"
@@ -33,6 +35,24 @@ export async function PageHeader({
     ...(breadcrumbs ?? []),
     { label: title },
   ]
+
+  // Pull the bell-icon counts here rather than in HeaderNotifications
+  // itself, so the bell stays a thin client component (no DB/auth code
+  // pulled into the bundle). When tasks are off we skip the query.
+  const taskSummary =
+    ctx && flags.tasksEnabled
+      ? await getTaskSummary({
+          companyId: ctx.company.id,
+          assignedToId: ctx.user.id,
+        })
+      : null;
+  const notifications = {
+    myOpen: taskSummary
+      ? taskSummary.open + taskSummary.inProgress
+      : 0,
+    myOverdue: taskSummary?.overdue ?? 0,
+    tasksEnabled: flags.tasksEnabled,
+  }
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
@@ -75,7 +95,7 @@ export async function PageHeader({
             orientation="vertical"
             className="mx-1 hidden data-vertical:h-5 data-vertical:self-auto md:block"
           />
-          <HeaderNotifications />
+          <HeaderNotifications data={notifications} />
           <ModeToggle />
           {ctx ? (
             <HeaderUserMenu

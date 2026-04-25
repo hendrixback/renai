@@ -17,7 +17,9 @@ import { getDashboardData } from "@/lib/dashboard";
 import { flags } from "@/lib/flags";
 import { prisma } from "@/lib/prisma";
 import { computePef } from "@/lib/production";
+import { getTaskSummary, listTasks } from "@/lib/tasks";
 import { DashboardFilters } from "@/components/dashboard/dashboard-filters";
+import { OpenTasksWidget } from "@/components/dashboard/open-tasks-widget";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,7 +70,19 @@ export default async function DashboardPage({
       })
     : Promise.resolve(null);
 
-  const [data, carbon, activitiesRaw, sites, pef] = await Promise.all([
+  const tasksPromise = flags.tasksEnabled
+    ? Promise.all([
+        listTasks({
+          companyId: ctx.company.id,
+          currentUserId: ctx.user.id,
+          filters: { myTasks: true, overdueOnly: false },
+          take: 5,
+        }),
+        getTaskSummary({ companyId: ctx.company.id }),
+      ])
+    : Promise.resolve(null);
+
+  const [data, carbon, activitiesRaw, sites, pef, tasksBundle] = await Promise.all([
     getDashboardData(ctx.company.id, filter),
     getCarbonSummary(ctx.company.id, filter),
     prisma.activityLog.findMany({
@@ -83,7 +97,15 @@ export default async function DashboardPage({
       select: { id: true, name: true },
     }),
     pefPromise,
+    tasksPromise,
   ]);
+
+  const myActiveTasks = tasksBundle
+    ? tasksBundle[0].filter(
+        (t) => t.status === "OPEN" || t.status === "IN_PROGRESS",
+      )
+    : [];
+  const teamTaskSummary = tasksBundle ? tasksBundle[1] : null;
 
   const { kpi, byCategory, byTreatment, recentFlows, alerts, meta } = data;
   const activities: TeamActionEntry[] = activitiesRaw.map((a) => ({
@@ -338,6 +360,15 @@ export default async function DashboardPage({
 
         {/* Alerts */}
         <InsightsAlerts alerts={alerts} />
+
+        {/* Open tasks widget — only when the Tasks module is on. */}
+        {flags.tasksEnabled && teamTaskSummary ? (
+          <OpenTasksWidget
+            myTasks={myActiveTasks}
+            teamOpen={teamTaskSummary.open + teamTaskSummary.inProgress}
+            teamOverdue={teamTaskSummary.overdue}
+          />
+        ) : null}
 
         {/* Latest team actions (Spec §7.7) */}
         <LatestTeamActions activities={activities} />

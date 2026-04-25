@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { getCurrentContext, getCurrentUser } from "@/lib/auth";
+import { touchUserLastActive } from "@/lib/auth/touch-last-active";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,12 @@ export default async function AppLayout({
     // Regular user without any company access — rare edge case.
     redirect("/login?error=no-company");
   }
+
+  // Spec §17.4 — track Last Active per user. Throttled to one DB
+  // write per ~5 min via touchUserLastActive's internal check, so
+  // every page navigation is fine. Run after auth checks so we never
+  // touch lastActiveAt for an unauthenticated render.
+  await touchUserLastActive(ctx.user.id);
 
   const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
 
