@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -68,7 +69,12 @@ export function HeaderNotifications({
         ) : null}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={6} className="min-w-72">
-        <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+        {/* base-ui's MenuGroupLabel must live inside a Menu.Group;
+            wrap accordingly to avoid a MenuGroupRootContext runtime
+            error when the dropdown opens. */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         {total === 0 ? (
           <div className="px-3 py-6 text-center">
@@ -78,7 +84,7 @@ export function HeaderNotifications({
             </p>
           </div>
         ) : (
-          <>
+          <DropdownMenuGroup>
             <DropdownMenuItem render={<Link href="/tasks?scope=mine" />}>
               <BellIcon className="size-4" />
               <span className="flex-1">Open tasks</span>
@@ -95,7 +101,7 @@ export function HeaderNotifications({
                 </span>
               </DropdownMenuItem>
             ) : null}
-          </>
+          </DropdownMenuGroup>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
