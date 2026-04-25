@@ -6,6 +6,7 @@ import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { getCurrentContext, getCurrentUser } from "@/lib/auth";
 import { touchUserLastActive } from "@/lib/auth/touch-last-active";
+import { flags } from "@/lib/flags";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,13 @@ export default async function AppLayout({
           role: ctx.company.role,
         }}
         isImpersonating={ctx.isImpersonating}
+        flagSet={{
+          analysisEnabled: flags.analysisEnabled,
+          documentationEnabled: flags.documentationEnabled,
+          regulationsEnabled: flags.regulationsEnabled,
+          teamOverviewEnabled: flags.teamOverviewEnabled,
+          tasksEnabled: flags.tasksEnabled,
+        }}
       />
       <SidebarInset>
         {ctx.isImpersonating ? (

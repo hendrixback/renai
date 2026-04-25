@@ -14,8 +14,6 @@ import {
   UsersIcon,
 } from "lucide-react"
 
-import { flags } from "@/lib/flags"
-
 import { CompanySwitcher } from "@/components/company-switcher"
 import { NavMain, type NavItem } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -52,12 +50,23 @@ type SidebarCompany = {
  *   Dashboard → Waste Flows → Carbon Footprint → Analysis → Documentation
  *             → Regulations → Team Overview
  *
- * Unreleased modules (Analysis, Regulations, Team Overview) are
- * flag-gated so production only shows what actually works. The legacy
- * Reporting slot stays visible until Analysis flips on — both routes
- * coexist so there's always at least one "analyse" entry point.
+ * Unreleased modules (Regulations, Team Overview, Tasks) are
+ * flag-gated so production only shows what actually works. Flag values
+ * are passed in as props from the server-rendered layout — this avoids
+ * the dev-mode hydration mismatch that occurs when a client component
+ * reads `flags.*` directly while the server reads it at runtime
+ * (Turbopack inlines client-side, Node reads server-side, and the two
+ * can disagree mid-HMR).
  */
-function buildNavItems(): NavItem[] {
+export type SidebarFlagSet = {
+  analysisEnabled: boolean
+  documentationEnabled: boolean
+  regulationsEnabled: boolean
+  teamOverviewEnabled: boolean
+  tasksEnabled: boolean
+}
+
+function buildNavItems(flagSet: SidebarFlagSet): NavItem[] {
   const items: NavItem[] = [
     { title: "Dashboard", url: "/dashboard", icon: <LayoutDashboardIcon /> },
     { title: "Waste Flows", url: "/waste-flows", icon: <RecycleIcon /> },
@@ -68,15 +77,11 @@ function buildNavItems(): NavItem[] {
     },
   ]
 
-  if (flags.analysisEnabled) {
+  if (flagSet.analysisEnabled) {
     items.push({ title: "Analysis", url: "/analysis", icon: <BarChart3Icon /> })
-  } else {
-    // Legacy stub — keep until /analysis is real, so the sidebar never
-    // has an empty "analyse your data" slot.
-    items.push({ title: "Reporting", url: "/reporting", icon: <BarChart3Icon /> })
   }
 
-  if (flags.documentationEnabled) {
+  if (flagSet.documentationEnabled) {
     items.push({
       title: "Documentation",
       url: "/documentation",
@@ -84,7 +89,7 @@ function buildNavItems(): NavItem[] {
     })
   }
 
-  if (flags.regulationsEnabled) {
+  if (flagSet.regulationsEnabled) {
     items.push({
       title: "Regulations",
       url: "/regulations",
@@ -92,7 +97,7 @@ function buildNavItems(): NavItem[] {
     })
   }
 
-  if (flags.teamOverviewEnabled) {
+  if (flagSet.teamOverviewEnabled) {
     items.push({
       title: "Team Overview",
       url: "/team-overview",
@@ -100,7 +105,7 @@ function buildNavItems(): NavItem[] {
     })
   }
 
-  if (flags.tasksEnabled) {
+  if (flagSet.tasksEnabled) {
     items.push({
       title: "Tasks",
       url: "/tasks",
@@ -117,17 +122,19 @@ export function AppSidebar({
   companies,
   activeCompany,
   isImpersonating,
+  flagSet,
   ...props
 }: {
   user: AppSidebarUser
   companies: SidebarCompany[]
   activeCompany: SidebarCompany
   isImpersonating: boolean
+  flagSet: SidebarFlagSet
 } & React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const showAdminLink = user.role === "ADMIN"
   const adminActive = pathname.startsWith("/admin")
-  const navMain = React.useMemo(() => buildNavItems(), [])
+  const navMain = React.useMemo(() => buildNavItems(flagSet), [flagSet])
 
   // When impersonating, show the active company in the switcher list too so
   // the user can see and exit — the "exit" button in the impersonation
