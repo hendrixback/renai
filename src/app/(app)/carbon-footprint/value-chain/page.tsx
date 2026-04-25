@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getCurrentContext } from "@/lib/auth";
@@ -126,10 +127,15 @@ export default async function ValueChainPage() {
                 {entries.map((e) => (
                   <TableRow key={e.id}>
                     <TableCell className="text-sm">
-                      {e.month.toLocaleString(undefined, {
-                        year: "numeric",
-                        month: "short",
-                      })}
+                      <Link
+                        href={`/carbon-footprint/value-chain/${e.id}`}
+                        className="hover:underline"
+                      >
+                        {e.month.toLocaleString(undefined, {
+                          year: "numeric",
+                          month: "short",
+                        })}
+                      </Link>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
@@ -137,7 +143,12 @@ export default async function ValueChainPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">
-                      {e.description}
+                      <Link
+                        href={`/carbon-footprint/value-chain/${e.id}`}
+                        className="hover:underline"
+                      >
+                        {e.description}
+                      </Link>
                     </TableCell>
                     <TableCell className="text-sm">
                       {e.site?.name ?? (
