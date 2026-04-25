@@ -208,7 +208,8 @@ function InviteUrlBlock({ url }: { url: string }) {
   return (
     <div className="mt-3 flex flex-col gap-2 rounded-lg border bg-muted/40 p-3">
       <p className="text-xs font-medium text-muted-foreground">
-        Invite link (copy and share manually — email sending not wired yet)
+        Invite link — sent by email; copy this as a fallback if the message
+        doesn&apos;t arrive.
       </p>
       <div className="flex items-center gap-2">
         <Input
@@ -264,12 +265,35 @@ export function TeamPanel({
   const [role, setRole] = React.useState<string>("MEMBER")
   const formRef = React.useRef<HTMLFormElement>(null)
 
+  // Track which action result the user has seen. The banner shows
+  // when the current `state` isn't the one tagged as "dismissed".
+  // - User clicks ×        → setDismissedState(state)
+  // - New form submission  → state becomes a fresh object → banner re-shows
+  // - Invitation list changes (revoke/re-invite triggered a revalidate) →
+  //   "previous prop in state" pattern detects it during render and
+  //   auto-dismisses the now-stale banner.
+  const [dismissedState, setDismissedState] = React.useState<TeamState | null>(
+    null,
+  )
+  const invitationsKey = invitations.map((i) => i.id).join(",")
+  const [previousInvitationsKey, setPreviousInvitationsKey] =
+    React.useState(invitationsKey)
+
+  if (previousInvitationsKey !== invitationsKey) {
+    setPreviousInvitationsKey(invitationsKey)
+    setDismissedState(state)
+  }
+
   React.useEffect(() => {
     if (state.success && formRef.current) {
       formRef.current.reset()
       setRole("MEMBER")
     }
   }, [state.success])
+
+  const showBanner =
+    state !== dismissedState &&
+    (state.success || state.error || state.inviteUrl)
 
   const roleOptions = isOwner
     ? ROLE_OPTIONS
@@ -348,16 +372,30 @@ export function TeamPanel({
                     </Button>
                   </div>
                 </div>
-                {state.error ? (
-                  <p className="text-sm text-destructive">{state.error}</p>
-                ) : null}
-                {state.success ? (
-                  <p className="text-sm text-emerald-600 dark:text-emerald-400">
-                    {state.success}
-                  </p>
-                ) : null}
-                {state.inviteUrl ? (
-                  <InviteUrlBlock url={state.inviteUrl} />
+                {showBanner ? (
+                  <div className="relative">
+                    {state.error ? (
+                      <p className="pr-7 text-sm text-destructive">
+                        {state.error}
+                      </p>
+                    ) : null}
+                    {state.success ? (
+                      <p className="pr-7 text-sm text-emerald-600 dark:text-emerald-400">
+                        {state.success}
+                      </p>
+                    ) : null}
+                    {state.inviteUrl ? (
+                      <InviteUrlBlock url={state.inviteUrl} />
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => setDismissedState(state)}
+                      aria-label="Dismiss"
+                      className="absolute right-0 top-0 rounded p-1 text-muted-foreground hover:bg-muted"
+                    >
+                      <XIcon className="size-3.5" />
+                    </button>
+                  </div>
                 ) : null}
               </FieldGroup>
             </form>
