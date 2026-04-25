@@ -2,17 +2,35 @@ import { notFound } from "next/navigation";
 
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import {
+  buildFuelEntryWhere,
+  factorSourceFromSnapshot,
+  type CarbonListSearchParams,
+} from "@/lib/carbon-filters";
 import { FuelPanel } from "@/components/carbon/fuel-panel";
+import { serializeSearchParams } from "@/components/export-menu";
 
-export default async function FuelPage() {
+export const dynamic = "force-dynamic";
+
+export default async function FuelPage({
+  searchParams,
+}: {
+  searchParams: Promise<CarbonListSearchParams>;
+}) {
   const ctx = await getCurrentContext();
   if (!ctx) notFound();
 
+  const params = await searchParams;
+  const where = buildFuelEntryWhere(params, ctx.company.id);
+
   const [entries, sites] = await Promise.all([
     prisma.fuelEntry.findMany({
-      where: { companyId: ctx.company.id },
+      where,
       orderBy: { month: "desc" },
-      include: { site: { select: { name: true } } },
+      include: {
+        site: { select: { name: true } },
+        emissionFactor: { select: { source: true } },
+      },
     }),
     prisma.site.findMany({
       where: { companyId: ctx.company.id },
@@ -21,9 +39,15 @@ export default async function FuelPage() {
     }),
   ]);
 
+  const hasActiveFilters = Boolean(
+    params.year || params.site || params.sourceType || params.status,
+  );
+
   return (
     <FuelPanel
       sites={sites}
+      searchString={serializeSearchParams(params)}
+      hasActiveFilters={hasActiveFilters}
       entries={entries.map((e) => ({
         id: e.id,
         fuelType: e.fuelType,
@@ -34,6 +58,11 @@ export default async function FuelPage() {
         siteName: e.site?.name ?? null,
         locationName: e.locationName,
         notes: e.notes,
+        recordStatus: e.recordStatus,
+        factorSource: factorSourceFromSnapshot(
+          e.factorSnapshot,
+          e.emissionFactor?.source ?? null,
+        ),
       }))}
     />
   );

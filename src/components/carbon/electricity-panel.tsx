@@ -1,5 +1,6 @@
 import Link from "next/link"
 
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/table"
 import { DeleteElectricityEntryButton } from "@/components/carbon/delete-entry-button"
 import { RegisterElectricityDialog } from "@/components/carbon/register-electricity-dialog"
+import { CarbonFiltersBar } from "@/components/carbon/carbon-filters-bar"
 import { ExportMenu } from "@/components/export-menu"
 
 type Site = { id: string; name: string }
@@ -28,6 +30,14 @@ type Entry = {
   siteName: string | null
   locationName: string | null
   notes: string | null
+  recordStatus: "DRAFT" | "ACTIVE" | "ARCHIVED"
+  factorSource: string | null
+}
+
+const STATUS_TONE: Record<Entry["recordStatus"], "default" | "secondary" | "outline"> = {
+  ACTIVE: "default",
+  DRAFT: "outline",
+  ARCHIVED: "secondary",
 }
 
 function fmt(v: string | null): string {
@@ -38,9 +48,13 @@ function fmt(v: string | null): string {
 export function ElectricityPanel({
   entries,
   sites,
+  searchString,
+  hasActiveFilters,
 }: {
   entries: Entry[]
   sites: Site[]
+  searchString?: string
+  hasActiveFilters?: boolean
 }) {
   const totalLocation = entries.reduce(
     (sum, e) => sum + (e.locationBasedKgCo2e ? Number(e.locationBasedKgCo2e) : 0),
@@ -63,10 +77,15 @@ export function ElectricityPanel({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <ExportMenu basePath="/carbon-footprint/electricity/export" />
+          <ExportMenu
+            basePath="/carbon-footprint/electricity/export"
+            searchString={searchString}
+          />
           <RegisterElectricityDialog sites={sites} />
         </div>
       </div>
+
+      <CarbonFiltersBar sites={sites} />
 
       <Card className="gap-0 overflow-hidden">
         <CardHeader className="flex-row items-center justify-between">
@@ -100,10 +119,20 @@ export function ElectricityPanel({
         <CardContent className="p-0">
           {entries.length === 0 ? (
             <div className="p-10 text-center">
-              <p className="text-sm font-medium">No electricity entries yet.</p>
+              <p className="text-sm font-medium">
+                {hasActiveFilters
+                  ? "No electricity entries match these filters."
+                  : "No electricity entries yet."}
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Click <span className="font-medium">Register Electricity</span>{" "}
-                above to add your monthly consumption.
+                {hasActiveFilters ? (
+                  "Adjust or clear the filters above."
+                ) : (
+                  <>
+                    Click <span className="font-medium">Register Electricity</span>{" "}
+                    above to add your monthly consumption.
+                  </>
+                )}
               </p>
             </div>
           ) : (
@@ -115,6 +144,8 @@ export function ElectricityPanel({
                   <TableHead className="text-right">Renewable %</TableHead>
                   <TableHead>Provider</TableHead>
                   <TableHead>Site</TableHead>
+                  <TableHead>Factor source</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead
                     className="text-right"
                     title="Pure grid factor × kWh. Reflects the territorial grid mix."
@@ -165,6 +196,14 @@ export function ElectricityPanel({
                       {e.siteName ?? e.locationName ?? (
                         <span className="text-muted-foreground">—</span>
                       )}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {e.factorSource ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={STATUS_TONE[e.recordStatus]}>
+                        {e.recordStatus}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm tabular-nums">
                       {e.locationBasedKgCo2e ? (

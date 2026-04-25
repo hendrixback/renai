@@ -2,17 +2,35 @@ import { notFound } from "next/navigation";
 
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import {
+  buildElectricityEntryWhere,
+  factorSourceFromSnapshot,
+  type CarbonListSearchParams,
+} from "@/lib/carbon-filters";
 import { ElectricityPanel } from "@/components/carbon/electricity-panel";
+import { serializeSearchParams } from "@/components/export-menu";
 
-export default async function ElectricityPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ElectricityPage({
+  searchParams,
+}: {
+  searchParams: Promise<CarbonListSearchParams>;
+}) {
   const ctx = await getCurrentContext();
   if (!ctx) notFound();
 
+  const params = await searchParams;
+  const where = buildElectricityEntryWhere(params, ctx.company.id);
+
   const [entries, sites] = await Promise.all([
     prisma.electricityEntry.findMany({
-      where: { companyId: ctx.company.id },
+      where,
       orderBy: { month: "desc" },
-      include: { site: { select: { name: true } } },
+      include: {
+        site: { select: { name: true } },
+        emissionFactor: { select: { source: true } },
+      },
     }),
     prisma.site.findMany({
       where: { companyId: ctx.company.id },
@@ -21,9 +39,15 @@ export default async function ElectricityPage() {
     }),
   ]);
 
+  const hasActiveFilters = Boolean(
+    params.year || params.site || params.status,
+  );
+
   return (
     <ElectricityPanel
       sites={sites}
+      searchString={serializeSearchParams(params)}
+      hasActiveFilters={hasActiveFilters}
       entries={entries.map((e) => ({
         id: e.id,
         kwh: e.kwh.toString(),
@@ -46,6 +70,11 @@ export default async function ElectricityPage() {
         siteName: e.site?.name ?? null,
         locationName: e.locationName,
         notes: e.notes,
+        recordStatus: e.recordStatus,
+        factorSource: factorSourceFromSnapshot(
+          e.factorSnapshot,
+          e.emissionFactor?.source ?? null,
+        ),
       }))}
     />
   );

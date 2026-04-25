@@ -1,6 +1,7 @@
 import Link from "next/link"
 
 import { FUEL_TYPES } from "@/lib/carbon-options"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/table"
 import { DeleteFuelEntryButton } from "@/components/carbon/delete-entry-button"
 import { RegisterFuelDialog } from "@/components/carbon/register-fuel-dialog"
+import { CarbonFiltersBar } from "@/components/carbon/carbon-filters-bar"
 import { ExportMenu } from "@/components/export-menu"
 
 type Site = { id: string; name: string }
@@ -26,6 +28,14 @@ type Entry = {
   siteName: string | null
   locationName: string | null
   notes: string | null
+  recordStatus: "DRAFT" | "ACTIVE" | "ARCHIVED"
+  factorSource: string | null
+}
+
+const STATUS_TONE: Record<Entry["recordStatus"], "default" | "secondary" | "outline"> = {
+  ACTIVE: "default",
+  DRAFT: "outline",
+  ARCHIVED: "secondary",
 }
 
 function fuelLabel(v: string) {
@@ -35,9 +45,17 @@ function fuelLabel(v: string) {
 export function FuelPanel({
   entries,
   sites,
+  searchString,
+  hasActiveFilters,
 }: {
   entries: Entry[]
   sites: Site[]
+  /** Pre-serialised query string from the page; threaded into ExportMenu so
+   *  the export honours the same filter slice the user is viewing. */
+  searchString?: string
+  /** True when the user has any filter applied — used to swap the empty
+   *  state copy from "no entries yet" → "no entries match these filters". */
+  hasActiveFilters?: boolean
 }) {
   const totalKg = entries.reduce(
     (sum, e) => sum + (e.kgCo2e ? Number(e.kgCo2e) : 0),
@@ -54,10 +72,15 @@ export function FuelPanel({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <ExportMenu basePath="/carbon-footprint/fuel/export" />
+          <ExportMenu
+            basePath="/carbon-footprint/fuel/export"
+            searchString={searchString}
+          />
           <RegisterFuelDialog sites={sites} />
         </div>
       </div>
+
+      <CarbonFiltersBar sites={sites} showSourceType />
 
       <Card className="gap-0 overflow-hidden">
         <CardHeader className="flex-row items-center justify-between">
@@ -77,10 +100,20 @@ export function FuelPanel({
         <CardContent className="p-0">
           {entries.length === 0 ? (
             <div className="p-10 text-center">
-              <p className="text-sm font-medium">No fuel entries yet.</p>
+              <p className="text-sm font-medium">
+                {hasActiveFilters
+                  ? "No fuel entries match these filters."
+                  : "No fuel entries yet."}
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Click <span className="font-medium">Register Fuel</span> above
-                to add diesel, natural gas, LPG, etc.
+                {hasActiveFilters ? (
+                  "Adjust or clear the filters above."
+                ) : (
+                  <>
+                    Click <span className="font-medium">Register Fuel</span> above
+                    to add diesel, natural gas, LPG, etc.
+                  </>
+                )}
               </p>
             </div>
           ) : (
@@ -91,6 +124,8 @@ export function FuelPanel({
                   <TableHead>Fuel</TableHead>
                   <TableHead className="text-right">Quantity</TableHead>
                   <TableHead>Site</TableHead>
+                  <TableHead>Factor source</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">kgCO₂e</TableHead>
                   <TableHead className="w-[60px]" />
                 </TableRow>
@@ -127,6 +162,14 @@ export function FuelPanel({
                       {e.siteName ?? e.locationName ?? (
                         <span className="text-muted-foreground">—</span>
                       )}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {e.factorSource ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={STATUS_TONE[e.recordStatus]}>
+                        {e.recordStatus}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm tabular-nums">
                       {e.kgCo2e ? (
