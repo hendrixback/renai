@@ -24,16 +24,24 @@ export type HeaderNotificationsData = {
   tasksEnabled: boolean;
 };
 
+const FALLBACK_DATA: HeaderNotificationsData = {
+  myOpen: 0,
+  myOverdue: 0,
+  tasksEnabled: false,
+};
+
 /**
  * Header notifications bell. When Tasks is enabled, surfaces the
  * current user's open + overdue assignment counts and links to the
- * task list. When the module is off, falls back to the placeholder
- * copy so the chrome stays consistent across deployments.
+ * task list. When the module is off — or in any case where the data
+ * prop is missing (e.g. a stale dev-server bundle calling the old
+ * no-prop signature) — falls back to placeholder copy so the chrome
+ * stays consistent across deployments.
  */
 export function HeaderNotifications({
-  data,
+  data = FALLBACK_DATA,
 }: {
-  data: HeaderNotificationsData;
+  data?: HeaderNotificationsData;
 }) {
   const total = data.myOpen;
   const showBadge = data.tasksEnabled && total > 0;
