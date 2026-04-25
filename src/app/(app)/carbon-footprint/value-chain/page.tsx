@@ -27,7 +27,8 @@ import {
 import { CarbonFiltersBar } from "@/components/carbon/carbon-filters-bar";
 import { ComingSoonPanel } from "@/components/carbon/coming-soon-panel";
 import { RegisterScope3Dialog } from "@/components/carbon/register-scope3-dialog";
-import { ExportMenu, serializeSearchParams } from "@/components/export-menu";
+import { ExportMenu } from "@/components/export-menu";
+import { serializeSearchParams } from "@/lib/url";
 
 const CATEGORY_LABEL: Record<string, string> = {
   PURCHASED_GOODS_SERVICES: "Purchased goods",

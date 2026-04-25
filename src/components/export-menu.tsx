@@ -63,21 +63,3 @@ export function ExportMenu({ basePath, searchString, label = "Export" }: Props) 
   );
 }
 
-/**
- * Helper: serialise a page's searchParams object into the query string the
- * ExportMenu consumes. Called from server components.
- */
-export function serializeSearchParams(
-  params: Record<string, string | string[] | null | undefined>,
-): string {
-  const out = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value == null) continue;
-    if (Array.isArray(value)) {
-      value.forEach((v) => v != null && out.append(key, v));
-    } else {
-      out.set(key, value);
-    }
-  }
-  return out.toString();
-}

@@ -8,7 +8,8 @@ import { documentTypeSchema } from "@/lib/schemas/document.schema";
 import { DocumentService } from "@/lib/services/documents";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
-import { ExportMenu, serializeSearchParams } from "@/components/export-menu";
+import { ExportMenu } from "@/components/export-menu";
+import { serializeSearchParams } from "@/lib/url";
 import { DocumentsFilters } from "@/components/documentation/documents-filters";
 import { DocumentsList } from "@/components/documentation/documents-list";
 

@@ -8,7 +8,7 @@ import {
   type CarbonListSearchParams,
 } from "@/lib/carbon-filters";
 import { ElectricityPanel } from "@/components/carbon/electricity-panel";
-import { serializeSearchParams } from "@/components/export-menu";
+import { serializeSearchParams } from "@/lib/url";
 
 export const dynamic = "force-dynamic";
 

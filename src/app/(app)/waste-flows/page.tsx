@@ -7,7 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { buildWasteFlowsWhere, type WasteFlowListSearchParams } from "@/lib/waste-flows";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
-import { ExportMenu, serializeSearchParams } from "@/components/export-menu";
+import { ExportMenu } from "@/components/export-menu";
+import { serializeSearchParams } from "@/lib/url";
 import { WasteFlowsFilters } from "@/components/waste-flows-filters";
 import { WasteFlowsTable } from "@/components/waste-flows-table";
 
