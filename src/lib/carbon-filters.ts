@@ -10,7 +10,29 @@ export type CarbonListSearchParams = {
   site?: string | null;
   sourceType?: string | null;
   status?: string | null;
+  /** Scope 3 only — Scope3Category enum value. */
+  category?: string | null;
 };
+
+const VALID_SCOPE3_CATEGORY = [
+  "PURCHASED_GOODS_SERVICES",
+  "FUEL_ENERGY_RELATED",
+  "UPSTREAM_TRANSPORT",
+  "WASTE_GENERATED",
+  "BUSINESS_TRAVEL",
+  "EMPLOYEE_COMMUTING",
+  "DOWNSTREAM_TRANSPORT",
+] as const;
+
+export const SCOPE3_CATEGORY_OPTIONS = [
+  { value: "PURCHASED_GOODS_SERVICES", label: "Purchased goods" },
+  { value: "FUEL_ENERGY_RELATED", label: "Fuel & energy" },
+  { value: "UPSTREAM_TRANSPORT", label: "Upstream transport" },
+  { value: "WASTE_GENERATED", label: "Waste generated" },
+  { value: "BUSINESS_TRAVEL", label: "Business travel" },
+  { value: "EMPLOYEE_COMMUTING", label: "Commuting" },
+  { value: "DOWNSTREAM_TRANSPORT", label: "Downstream transport" },
+] as const;
 
 const VALID_STATUS = ["DRAFT", "ACTIVE", "ARCHIVED"] as const;
 
@@ -106,6 +128,40 @@ export function buildElectricityEntryWhere(
 }
 
 /**
+ * Builds the where-clause for Scope 3 entries. Adds `category` to the
+ * shared filter set (Scope 3 has 7 categories — most material driver of
+ * how users want to slice these records).
+ */
+export function buildScope3EntryWhere(
+  params: CarbonListSearchParams,
+  companyId: string,
+): Prisma.Scope3EntryWhereInput {
+  const where: Prisma.Scope3EntryWhereInput = {
+    companyId,
+    deletedAt: null,
+  };
+
+  const year = parsedYear(params.year);
+  if (year !== undefined) where.reportingYear = year;
+  if (params.site) where.siteId = params.site;
+  if (
+    params.status &&
+    (VALID_STATUS as readonly string[]).includes(params.status)
+  ) {
+    where.recordStatus = params.status as (typeof VALID_STATUS)[number];
+  }
+  if (
+    params.category &&
+    (VALID_SCOPE3_CATEGORY as readonly string[]).includes(params.category)
+  ) {
+    where.category =
+      params.category as (typeof VALID_SCOPE3_CATEGORY)[number];
+  }
+
+  return where;
+}
+
+/**
  * Human-readable summary of the active filters — used as the export
  * subtitle so an audit reader knows which slice the file represents.
  */
@@ -131,6 +187,15 @@ export function describeCarbonFilters(
   }
   if (params.status && (VALID_STATUS as readonly string[]).includes(params.status)) {
     parts.push(`Status: ${params.status}`);
+  }
+  if (
+    params.category &&
+    (VALID_SCOPE3_CATEGORY as readonly string[]).includes(params.category)
+  ) {
+    const label = SCOPE3_CATEGORY_OPTIONS.find(
+      (o) => o.value === params.category,
+    )?.label;
+    parts.push(`Category: ${label ?? params.category}`);
   }
   return parts.length ? `Filters — ${parts.join(" · ")}` : undefined;
 }

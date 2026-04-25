@@ -7,6 +7,7 @@ import { XIcon } from "lucide-react";
 import {
   CARBON_STATUS_OPTIONS,
   EMISSION_SOURCE_TYPE_OPTIONS,
+  SCOPE3_CATEGORY_OPTIONS,
   carbonYearOptions,
 } from "@/lib/carbon-filters";
 import { Button } from "@/components/ui/button";
@@ -47,10 +48,13 @@ function PlaceholderValue({
 export function CarbonFiltersBar({
   sites,
   showSourceType = false,
+  showCategory = false,
 }: {
   sites: SiteOption[];
   /** Scope 1 only — Scope 2 doesn't have an emission source type today. */
   showSourceType?: boolean;
+  /** Scope 3 only — surface the 7 GHG-Protocol categories as a select. */
+  showCategory?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -59,12 +63,14 @@ export function CarbonFiltersBar({
   const currentYear = params.get("year") ?? ALL;
   const currentSite = params.get("site") ?? ALL;
   const currentSourceType = params.get("sourceType") ?? ALL;
+  const currentCategory = params.get("category") ?? ALL;
   const currentStatus = params.get("status") ?? ALL;
 
   const hasFilters =
     currentYear !== ALL ||
     currentSite !== ALL ||
     currentSourceType !== ALL ||
+    currentCategory !== ALL ||
     currentStatus !== ALL;
 
   const push = React.useCallback(
@@ -153,6 +159,46 @@ export function CarbonFiltersBar({
               visible={currentSite !== ALL}
               onClear={() => setParam("site", "")}
               label="Clear site filter"
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {showCategory ? (
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs">Category</Label>
+          <div className="relative">
+            <Select
+              value={currentCategory}
+              onValueChange={(v) => setParam("category", String(v ?? ""))}
+            >
+              <SelectTrigger
+                className={
+                  currentCategory !== ALL
+                    ? "min-w-[190px] pr-14"
+                    : "min-w-[190px]"
+                }
+              >
+                <PlaceholderValue
+                  allLabel="All categories"
+                  resolve={(v) =>
+                    SCOPE3_CATEGORY_OPTIONS.find((o) => o.value === v)?.label
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All categories</SelectItem>
+                {SCOPE3_CATEGORY_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <SelectClearButton
+              visible={currentCategory !== ALL}
+              onClear={() => setParam("category", "")}
+              label="Clear category filter"
             />
           </div>
         </div>

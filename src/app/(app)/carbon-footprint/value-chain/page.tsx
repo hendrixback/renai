@@ -2,6 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getCurrentContext } from "@/lib/auth";
+import {
+  buildScope3EntryWhere,
+  factorSourceFromSnapshot,
+  type CarbonListSearchParams,
+} from "@/lib/carbon-filters";
 import { flags } from "@/lib/flags";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
@@ -19,8 +24,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CarbonFiltersBar } from "@/components/carbon/carbon-filters-bar";
 import { ComingSoonPanel } from "@/components/carbon/coming-soon-panel";
 import { RegisterScope3Dialog } from "@/components/carbon/register-scope3-dialog";
+import { ExportMenu, serializeSearchParams } from "@/components/export-menu";
 
 const CATEGORY_LABEL: Record<string, string> = {
   PURCHASED_GOODS_SERVICES: "Purchased goods",
@@ -34,9 +41,12 @@ const CATEGORY_LABEL: Record<string, string> = {
 
 export const dynamic = "force-dynamic";
 
-export default async function ValueChainPage() {
+export default async function ValueChainPage({
+  searchParams,
+}: {
+  searchParams: Promise<CarbonListSearchParams>;
+}) {
   if (!flags.scope3Enabled) {
-    // Flag not on yet — show the original placeholder copy.
     return (
       <ComingSoonPanel
         title="Scope 3 — Value chain"
@@ -55,11 +65,17 @@ export default async function ValueChainPage() {
   const ctx = await getCurrentContext();
   if (!ctx) notFound();
 
+  const params = await searchParams;
+  const where = buildScope3EntryWhere(params, ctx.company.id);
+
   const [entries, sites] = await Promise.all([
     prisma.scope3Entry.findMany({
-      where: { companyId: ctx.company.id, deletedAt: null },
+      where,
       orderBy: { month: "desc" },
-      include: { site: { select: { name: true } } },
+      include: {
+        site: { select: { name: true } },
+        emissionFactor: { select: { source: true } },
+      },
     }),
     prisma.site.findMany({
       where: { companyId: ctx.company.id, deletedAt: null },
@@ -73,6 +89,10 @@ export default async function ValueChainPage() {
     0,
   );
 
+  const hasActiveFilters = Boolean(
+    params.year || params.site || params.status || params.category,
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-end justify-between">
@@ -84,8 +104,16 @@ export default async function ValueChainPage() {
             kgCO₂e entries until their dedicated forms ship.
           </p>
         </div>
-        <RegisterScope3Dialog sites={sites} />
+        <div className="flex items-center gap-2">
+          <ExportMenu
+            basePath="/carbon-footprint/value-chain/export"
+            searchString={serializeSearchParams(params)}
+          />
+          <RegisterScope3Dialog sites={sites} />
+        </div>
       </div>
+
+      <CarbonFiltersBar sites={sites} showCategory />
 
       <Card className="gap-0 overflow-hidden">
         <CardHeader className="flex-row items-center justify-between">
@@ -105,10 +133,20 @@ export default async function ValueChainPage() {
         <CardContent className="p-0">
           {entries.length === 0 ? (
             <div className="p-10 text-center">
-              <p className="text-sm font-medium">No Scope 3 entries yet.</p>
+              <p className="text-sm font-medium">
+                {hasActiveFilters
+                  ? "No Scope 3 entries match these filters."
+                  : "No Scope 3 entries yet."}
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Click <span className="font-medium">Register Scope 3</span> above
-                to log a flight, hotel stay, or other value-chain activity.
+                {hasActiveFilters ? (
+                  "Adjust or clear the filters above."
+                ) : (
+                  <>
+                    Click <span className="font-medium">Register Scope 3</span> above
+                    to log a flight, hotel stay, or other value-chain activity.
+                  </>
+                )}
               </p>
             </div>
           ) : (
@@ -119,66 +157,76 @@ export default async function ValueChainPage() {
                   <TableHead>Category</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Site</TableHead>
+                  <TableHead>Factor source</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">kgCO₂e</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {entries.map((e) => (
-                  <TableRow key={e.id}>
-                    <TableCell className="text-sm">
-                      <Link
-                        href={`/carbon-footprint/value-chain/${e.id}`}
-                        className="hover:underline"
-                      >
-                        {e.month.toLocaleString(undefined, {
-                          year: "numeric",
-                          month: "short",
-                        })}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {CATEGORY_LABEL[e.category] ?? e.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      <Link
-                        href={`/carbon-footprint/value-chain/${e.id}`}
-                        className="hover:underline"
-                      >
-                        {e.description}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {e.site?.name ?? (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          e.recordStatus === "ACTIVE"
-                            ? "default"
-                            : e.recordStatus === "DRAFT"
-                              ? "outline"
-                              : "secondary"
-                        }
-                      >
-                        {e.recordStatus}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm tabular-nums">
-                      {e.kgCo2e ? (
-                        Number(e.kgCo2e).toLocaleString(undefined, {
-                          maximumFractionDigits: 1,
-                        })
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {entries.map((e) => {
+                  const factorSource = factorSourceFromSnapshot(
+                    e.factorSnapshot,
+                    e.emissionFactor?.source ?? null,
+                  );
+                  return (
+                    <TableRow key={e.id}>
+                      <TableCell className="text-sm">
+                        <Link
+                          href={`/carbon-footprint/value-chain/${e.id}`}
+                          className="hover:underline"
+                        >
+                          {e.month.toLocaleString(undefined, {
+                            year: "numeric",
+                            month: "short",
+                          })}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {CATEGORY_LABEL[e.category] ?? e.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        <Link
+                          href={`/carbon-footprint/value-chain/${e.id}`}
+                          className="hover:underline"
+                        >
+                          {e.description}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {e.site?.name ?? (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {factorSource ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            e.recordStatus === "ACTIVE"
+                              ? "default"
+                              : e.recordStatus === "DRAFT"
+                                ? "outline"
+                                : "secondary"
+                          }
+                        >
+                          {e.recordStatus}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm tabular-nums">
+                        {e.kgCo2e ? (
+                          Number(e.kgCo2e).toLocaleString(undefined, {
+                            maximumFractionDigits: 1,
+                          })
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
