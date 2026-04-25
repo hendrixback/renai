@@ -12,12 +12,15 @@ export type SendTaskAssignedEmailInput = TaskAssignedEmailProps & {
   /** Recipient email — kept separate from the template props so the
    *  template stays focused on rendering. */
   recipientEmail: string;
+  /** Tenant id — included as a Resend tag so the webhook handler can
+   *  correlate inbound events back to the right company. */
+  companyId: string;
 };
 
 export async function sendTaskAssignedEmail(
   input: SendTaskAssignedEmailInput,
 ): Promise<SendResult> {
-  const { recipientEmail, ...templateProps } = input;
+  const { recipientEmail, companyId, ...templateProps } = input;
   const html = await render(
     React.createElement(TaskAssignedEmail, templateProps),
   );
@@ -34,6 +37,7 @@ export async function sendTaskAssignedEmail(
     tags: [
       { name: "type", value: "task-assigned" },
       { name: "priority", value: input.priority.toLowerCase() },
+      { name: "company_id", value: companyId },
     ],
   });
 }

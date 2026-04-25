@@ -149,6 +149,7 @@ export async function inviteTeammate(
   const sendResult = await sendInvitationEmail({
     recipientEmail: invitation.email,
     companyName: ctx.company.name,
+    companyId: ctx.company.id,
     inviterName: ctx.user.name,
     role: invitation.role,
     inviteUrl,
@@ -158,6 +159,13 @@ export async function inviteTeammate(
     logger.warn("Invitation created but email send failed", {
       invitationId: invitation.id,
       error: sendResult.error,
+    });
+  } else if (sendResult.id) {
+    // Persist the Resend message id so the webhook handler can
+    // correlate inbound bounce/complaint events back to this row.
+    await prisma.invitation.update({
+      where: { id: invitation.id },
+      data: { resendMessageId: sendResult.id },
     });
   }
 

@@ -27,6 +27,7 @@ describe("sendTaskAssignedEmail", () => {
     dueDate: new Date("2026-05-02T00:00:00Z"),
     taskUrl: "https://app.renai.pt/tasks?scope=mine",
     companyName: "Maxtil",
+    companyId: "co-1",
   };
 
   it("dispatches with subject derived from the task title", async () => {
@@ -45,6 +46,7 @@ describe("sendTaskAssignedEmail", () => {
     expect(call.tags).toEqual([
       { name: "type", value: "task-assigned" },
       { name: "priority", value: "high" },
+      { name: "company_id", value: "co-1" },
     ]);
   });
 

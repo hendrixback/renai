@@ -41,6 +41,7 @@ async function notifyTaskAssigned(args: {
   assignerUserId: string;
   assignerName: string | null;
   companyName: string;
+  companyId: string;
 }): Promise<void> {
   if (args.assigneeId === args.assignerUserId) return;
   try {
@@ -59,6 +60,7 @@ async function notifyTaskAssigned(args: {
       dueDate: args.dueDate,
       taskUrl: `${appOrigin()}/tasks?scope=mine`,
       companyName: args.companyName,
+      companyId: args.companyId,
     });
   } catch (err) {
     logger.warn("Task-assigned email send threw", {
@@ -217,6 +219,7 @@ export async function createTask(
       assignerUserId: ctx.user.id,
       assignerName: ctx.user.name,
       companyName: ctx.company.name,
+      companyId: ctx.company.id,
     });
   }
 
@@ -354,6 +357,7 @@ export async function updateTask(
       assignerUserId: ctx.user.id,
       assignerName: ctx.user.name,
       companyName: ctx.company.name,
+      companyId: ctx.company.id,
     });
   }
 

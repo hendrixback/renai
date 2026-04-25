@@ -20,6 +20,7 @@ describe("sendInvitationEmail", () => {
   const baseInput = {
     recipientEmail: "alice@example.com",
     companyName: "Maxtil",
+    companyId: "co-1",
     inviterName: "João",
     role: "MEMBER",
     inviteUrl: "https://app.renai.pt/signup?token=abc",
@@ -35,6 +36,7 @@ describe("sendInvitationEmail", () => {
     expect(call.tags).toEqual([
       { name: "type", value: "invitation" },
       { name: "company", value: "Maxtil" },
+      { name: "company_id", value: "co-1" },
     ]);
   });
 

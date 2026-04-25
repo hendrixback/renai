@@ -35,9 +35,44 @@ export default async function TeamSettingsPage() {
         role: true,
         createdAt: true,
         expiresAt: true,
+        resendMessageId: true,
       },
     }),
   ]);
+
+  // Pull the most recent bounce/complaint event per pending invitation
+  // so the UI can show "Bounced" / "Spam complaint" inline. We only
+  // care about the terminal-failure events; SENT/DELIVERED don't
+  // change the action surface.
+  const messageIds = invitations
+    .map((i) => i.resendMessageId)
+    .filter((id): id is string => id !== null);
+  const failureEvents = messageIds.length
+    ? await prisma.emailEvent.findMany({
+        where: {
+          resendMessageId: { in: messageIds },
+          type: { in: ["BOUNCED", "COMPLAINED"] },
+        },
+        orderBy: { receivedAt: "desc" },
+        select: {
+          resendMessageId: true,
+          type: true,
+          reason: true,
+          receivedAt: true,
+        },
+      })
+    : [];
+  const eventByMessageId = new Map<
+    string,
+    { type: "BOUNCED" | "COMPLAINED"; reason: string | null }
+  >();
+  for (const e of failureEvents) {
+    if (eventByMessageId.has(e.resendMessageId)) continue; // newest wins
+    eventByMessageId.set(e.resendMessageId, {
+      type: e.type as "BOUNCED" | "COMPLAINED",
+      reason: e.reason,
+    });
+  }
 
   return (
     <TeamPanel
@@ -52,12 +87,23 @@ export default async function TeamSettingsPage() {
         userId: m.user.id,
         createdAt: m.createdAt.toISOString(),
       }))}
-      invitations={invitations.map((i) => ({
-        id: i.id,
-        email: i.email,
-        role: i.role,
-        expiresAt: i.expiresAt.toISOString(),
-      }))}
+      invitations={invitations.map((i) => {
+        const failure = i.resendMessageId
+          ? eventByMessageId.get(i.resendMessageId) ?? null
+          : null;
+        return {
+          id: i.id,
+          email: i.email,
+          role: i.role,
+          expiresAt: i.expiresAt.toISOString(),
+          deliveryStatus: failure
+            ? {
+                kind: failure.type,
+                reason: failure.reason,
+              }
+            : null,
+        };
+      })}
     />
   );
 }

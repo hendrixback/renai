@@ -82,6 +82,7 @@ model Company {
   activityLogs       ActivityLog[]
   factorRevisions    FactorRevision[]
   tasks              Task[]
+  emailEvents        EmailEvent[]
 }
 
 model Invitation {
@@ -96,6 +97,9 @@ model Invitation {
   acceptedByUserId String?
   revokedAt        DateTime?
   createdAt        DateTime       @default(now())
+  /// Resend message id for the invitation email — lets the webhook
+  /// handler correlate bounce/complaint events back to this row.
+  resendMessageId  String?
 
   company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invitedBy  User    @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: Cascade)
@@ -105,6 +109,7 @@ model Invitation {
   @@index([email])
   @@index([expiresAt])
   @@index([revokedAt])
+  @@index([resendMessageId])
 }
 
 model Membership {
@@ -580,6 +585,54 @@ enum ActivityType {
   COMPANY_CREATED
   COMPANY_UPDATED
   RECORD_EXPORTED
+}
+
+// ─── Email events (Resend webhooks) ─────────────────────────────
+
+/// Inbound webhook events from Resend's transactional email service.
+/// Captured to drive bounce/spam-complaint UI in /settings/team and
+/// keep an audit trail of every delivery outcome we care about.
+///
+/// Open and click events are intentionally NOT captured — tracking
+/// pixels and link rewrites are privacy-invasive for B2B
+/// transactional email and add subprocessor scope under GDPR.
+model EmailEvent {
+  id              String         @id @default(cuid())
+  /// Svix event id from the webhook delivery. Unique so retries
+  /// from Resend are deduped server-side.
+  webhookId       String         @unique
+  /// Resend's persistent message identifier — joins to
+  /// Invitation.resendMessageId for invite-bounce surfacing.
+  resendMessageId String
+  type            EmailEventType
+  /// Recipient email at time of send.
+  emailAddress    String
+  /// Hard / soft for bounces; null otherwise.
+  bounceType      String?
+  /// Free-text reason from Resend / receiver.
+  reason          String?
+  /// Tenant the email was sent on behalf of. Populated from the
+  /// `company_id` Resend tag we attach at send time. Optional because
+  /// some events may arrive before we've correlated the message.
+  companyId       String?
+  /// Full webhook payload, retained for audit + future-proofing.
+  rawPayload      Json
+  receivedAt      DateTime       @default(now())
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([resendMessageId])
+  @@index([companyId, type])
+  @@index([emailAddress, type])
+  @@index([receivedAt])
+}
+
+enum EmailEventType {
+  SENT
+  DELIVERED
+  DELIVERY_DELAYED
+  BOUNCED
+  COMPLAINED
 }
 
 // ─── Tasks (Spec §18) ───────────────────────────────────────────

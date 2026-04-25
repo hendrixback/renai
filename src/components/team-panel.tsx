@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useActionState, useTransition } from "react"
-import { CheckIcon, CopyIcon, Loader2, XIcon } from "lucide-react"
+import { AlertTriangleIcon, CheckIcon, CopyIcon, Loader2, XIcon } from "lucide-react"
 
 import {
   inviteTeammate,
@@ -65,6 +65,13 @@ type Invitation = {
   email: string
   role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER"
   expiresAt: string
+  /** Latest terminal delivery event from Resend (bounce / spam
+   *  complaint). null = no failure event seen — the message is
+   *  presumed delivered. */
+  deliveryStatus?: {
+    kind: "BOUNCED" | "COMPLAINED"
+    reason: string | null
+  } | null
 }
 
 const ROLE_OPTIONS = [
@@ -481,7 +488,26 @@ export function TeamPanel({
               <TableBody>
                 {invitations.map((i) => (
                   <TableRow key={i.id}>
-                    <TableCell className="text-sm">{i.email}</TableCell>
+                    <TableCell className="text-sm">
+                      <div>{i.email}</div>
+                      {i.deliveryStatus ? (
+                        <div className="mt-0.5 inline-flex items-center gap-1 text-xs text-destructive">
+                          <AlertTriangleIcon className="size-3" />
+                          {i.deliveryStatus.kind === "BOUNCED"
+                            ? "Email bounced"
+                            : "Reported as spam"}
+                          {i.deliveryStatus.reason ? (
+                            <span
+                              className="text-muted-foreground"
+                              title={i.deliveryStatus.reason}
+                            >
+                              — {i.deliveryStatus.reason.slice(0, 60)}
+                              {i.deliveryStatus.reason.length > 60 ? "…" : ""}
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </TableCell>
                     <TableCell>
                       <RoleBadge role={i.role} />
                     </TableCell>
