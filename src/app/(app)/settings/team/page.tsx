@@ -19,7 +19,15 @@ export default async function TeamSettingsPage() {
       },
     }),
     prisma.invitation.findMany({
-      where: { companyId: ctx.company.id, acceptedAt: null },
+      // Pending = not yet accepted, not revoked, and still within
+      // the 7-day TTL. Same filter set as /team-overview so the two
+      // surfaces never disagree about what's outstanding.
+      where: {
+        companyId: ctx.company.id,
+        acceptedAt: null,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
