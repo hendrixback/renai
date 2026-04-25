@@ -7,6 +7,7 @@ import {
   FileTextIcon,
   LayoutDashboardIcon,
   LeafIcon,
+  ListChecksIcon,
   RecycleIcon,
   SettingsIcon,
   ShieldIcon,
@@ -96,6 +97,14 @@ function buildNavItems(): NavItem[] {
       title: "Team Overview",
       url: "/team-overview",
       icon: <UsersIcon />,
+    })
+  }
+
+  if (flags.tasksEnabled) {
+    items.push({
+      title: "Tasks",
+      url: "/tasks",
+      icon: <ListChecksIcon />,
     })
   }
 

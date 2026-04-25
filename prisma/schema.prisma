@@ -18,6 +18,11 @@ model User {
   name         String?
   passwordHash String
   role         UserRole  @default(MEMBER) // platform-level; see Membership for per-company roles
+  /// Optional free-text department label (Spec §17.4). Kept on User
+  /// rather than Membership so multi-tenant users carry the same
+  /// department across companies — overridable per-membership later
+  /// if the need arises.
+  department   String?
   lastActiveAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -41,9 +46,12 @@ model User {
   linkedDocuments           DocumentLink[]     @relation("DocumentLinkLinkedBy")
   activityLogs              ActivityLog[]
   importedFactorRevisions   FactorRevision[]   @relation("FactorRevisionImporter")
+  assignedTasks             Task[]             @relation("TaskAssignedTo")
+  createdTasks              Task[]             @relation("TaskAssignedBy")
 
   @@index([role])
   @@index([lastActiveAt])
+  @@index([department])
 }
 
 enum UserRole {
@@ -73,6 +81,7 @@ model Company {
   documents          Document[]
   activityLogs       ActivityLog[]
   factorRevisions    FactorRevision[]
+  tasks              Task[]
 }
 
 model Invitation {
@@ -571,6 +580,67 @@ enum ActivityType {
   COMPANY_CREATED
   COMPANY_UPDATED
   RECORD_EXPORTED
+}
+
+// ─── Tasks (Spec §18) ───────────────────────────────────────────
+
+/// Task entity per Spec §18. Polymorphic record link via
+/// `relatedModule` + `relatedRecordId` (same convention as ActivityLog
+/// — keeps the join optional and lets a task attach to any record
+/// type without per-module FK churn).
+///
+/// Overdue is *derived* (status=OPEN/IN_PROGRESS && dueDate < now) —
+/// no enum value, no stored flag. Storing it would create dual
+/// sources of truth and require a sweeper job.
+model Task {
+  id             String       @id @default(cuid())
+  companyId      String
+  title          String
+  description    String?
+  priority       TaskPriority @default(MEDIUM)
+  status         TaskStatus   @default(OPEN)
+
+  assignedToId   String?
+  assignedById   String? // who assigned/created this task. ActivityLog tracks the granular history.
+
+  // Polymorphic link to a record (waste flow, scope entry, etc.) — both
+  // nullable so standalone tasks remain valid.
+  relatedModule   String? // "waste-flows", "scope-1", "scope-2", "scope-3", "production", "documentation", "regulations"
+  relatedRecordId String?
+
+  startDate   DateTime?
+  dueDate     DateTime?
+  completedAt DateTime?
+  notes       String?
+
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedTo User?   @relation("TaskAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedBy User?   @relation("TaskAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status])
+  @@index([companyId, assignedToId, status])
+  @@index([companyId, dueDate])
+  @@index([companyId, relatedModule, relatedRecordId])
+  @@index([deletedAt])
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+  CANCELLED
 }
 
 // ─── Factor Versioning (ADR-008) ─────────────────────────────────
