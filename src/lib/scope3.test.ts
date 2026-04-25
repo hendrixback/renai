@@ -7,7 +7,10 @@ vi.mock("@/lib/prisma", () => ({
   prisma: { emissionFactor: { findFirst } },
 }));
 
-import { computeBusinessTravelEmission } from "./scope3";
+import {
+  computeBusinessTravelEmission,
+  computeEmployeeCommutingEmission,
+} from "./scope3";
 
 const baseFactor = {
   id: "factor-1",
@@ -109,5 +112,64 @@ describe("computeBusinessTravelEmission", () => {
     expect(result.kgCo2e).toBeCloseTo(100, 2);
     // Only one DB call — regional + global lookups should not have run.
     expect(findFirst).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("computeEmployeeCommutingEmission", () => {
+  it("multiplies factor × distance × days × employees", async () => {
+    findFirst.mockResolvedValueOnce({
+      ...baseFactor,
+      category: "EMPLOYEE_COMMUTING",
+      subtype: "car_petrol_avg",
+      unit: "km",
+      kgCo2ePerUnit: 0.16844,
+    });
+    const result = await computeEmployeeCommutingEmission("co1", {
+      mode: "car_petrol_avg",
+      distancePerDayKm: 30,
+      daysPerYear: 220,
+      employees: 5,
+      region: "GLOBAL",
+    });
+    // 0.16844 × 30 × 220 × 5 ≈ 5558.52
+    expect(result.kgCo2e).toBeCloseTo(5558.52, 1);
+    expect(result.factorId).toBe("factor-1");
+  });
+
+  it("short-circuits to 0 emissions for walk + bicycle (no DB lookup)", async () => {
+    const walk = await computeEmployeeCommutingEmission("co1", {
+      mode: "walk",
+      distancePerDayKm: 2,
+      daysPerYear: 220,
+      employees: 1,
+      region: "GLOBAL",
+    });
+    const bike = await computeEmployeeCommutingEmission("co1", {
+      mode: "bicycle",
+      distancePerDayKm: 5,
+      daysPerYear: 220,
+      employees: 3,
+      region: "GLOBAL",
+    });
+    expect(walk).toEqual({ factorId: null, kgCo2e: 0, factorSnapshot: null });
+    expect(bike).toEqual({ factorId: null, kgCo2e: 0, factorSnapshot: null });
+    // Zero-emission modes should not hit the factor table at all.
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  it("returns nulls when factor cannot be resolved", async () => {
+    findFirst.mockResolvedValue(null);
+    const result = await computeEmployeeCommutingEmission("co1", {
+      mode: "scooter",
+      distancePerDayKm: 10,
+      daysPerYear: 220,
+      employees: 1,
+      region: "MARS",
+    });
+    expect(result).toEqual({
+      factorId: null,
+      kgCo2e: null,
+      factorSnapshot: null,
+    });
   });
 });

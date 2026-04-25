@@ -85,6 +85,39 @@ export const genericScope3DataSchema = z.object({
 });
 export type GenericScope3Data = z.infer<typeof genericScope3DataSchema>;
 
+export const EMPLOYEE_COMMUTING_MODES = [
+  "car_petrol_avg",
+  "car_diesel_avg",
+  "bus_coach",
+  "rail_national",
+  "metro_subway",
+  "bicycle",
+  "walk",
+  "scooter",
+] as const;
+export const employeeCommutingModeSchema = z.enum(EMPLOYEE_COMMUTING_MODES);
+export type EmployeeCommutingMode = z.infer<typeof employeeCommutingModeSchema>;
+
+/**
+ * EMPLOYEE_COMMUTING payload (GHG Protocol Cat 7).
+ * Activity-based: distance per day × days per year × employees → annual
+ * pkm or vehicle.km, multiplied by the matching factor.
+ *
+ * Defaults assume one employee × the typical European working year
+ * (220 days) — keeping the form short for the common case.
+ */
+export const employeeCommutingDataSchema = z.object({
+  mode: employeeCommutingModeSchema,
+  /** Round-trip commute distance per day, in km. */
+  distancePerDayKm: z.number().positive(),
+  /** Working days per year (defaults to 220). */
+  daysPerYear: z.number().int().positive().max(365).default(220),
+  /** Number of employees this entry represents. */
+  employees: z.number().int().positive().default(1),
+  region: z.string().min(2).max(8).default("GLOBAL"),
+});
+export type EmployeeCommutingData = z.infer<typeof employeeCommutingDataSchema>;
+
 /**
  * Top-level register payload. Discriminated on `category` so per-category
  * shape is enforced.
@@ -101,19 +134,17 @@ export const registerScope3Schema = z
     data: z.unknown(),
   })
   .superRefine((value, ctx) => {
+    let parsed;
     if (value.category === "BUSINESS_TRAVEL") {
-      const parsed = businessTravelDataSchema.safeParse(value.data);
-      if (!parsed.success) {
-        for (const issue of parsed.error.issues) {
-          ctx.addIssue({ ...issue, path: ["data", ...(issue.path ?? [])] });
-        }
-      }
+      parsed = businessTravelDataSchema.safeParse(value.data);
+    } else if (value.category === "EMPLOYEE_COMMUTING") {
+      parsed = employeeCommutingDataSchema.safeParse(value.data);
     } else {
-      const parsed = genericScope3DataSchema.safeParse(value.data);
-      if (!parsed.success) {
-        for (const issue of parsed.error.issues) {
-          ctx.addIssue({ ...issue, path: ["data", ...(issue.path ?? [])] });
-        }
+      parsed = genericScope3DataSchema.safeParse(value.data);
+    }
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        ctx.addIssue({ ...issue, path: ["data", ...(issue.path ?? [])] });
       }
     }
   });

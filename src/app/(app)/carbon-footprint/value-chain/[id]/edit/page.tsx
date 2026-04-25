@@ -5,6 +5,7 @@ import { flags } from "@/lib/flags";
 import { prisma } from "@/lib/prisma";
 import type {
   BusinessTravelMode,
+  EmployeeCommutingMode,
   Scope3CategoryValue,
 } from "@/lib/schemas/scope3.schema";
 import { PageHeader } from "@/components/page-header";
@@ -56,8 +57,12 @@ export default async function EditScope3Page({
 
   const data = (entry.categoryData ?? {}) as Record<string, unknown>;
   const isTravel = entry.category === "BUSINESS_TRAVEL";
+  const isCommuting = entry.category === "EMPLOYEE_COMMUTING";
   const travelMode = isTravel
     ? (asString(data.mode) as BusinessTravelMode)
+    : null;
+  const commutingMode = isCommuting
+    ? (asString(data.mode) as EmployeeCommutingMode)
     : null;
 
   const initial: Scope3EntryInitial = {
@@ -74,6 +79,10 @@ export default async function EditScope3Page({
     region: asString(data.region) || "GLOBAL",
     origin: asString(data.origin),
     destination: asString(data.destination),
+    commutingMode: commutingMode || null,
+    distancePerDayKm: asNumberString(data.distancePerDayKm),
+    daysPerYear: asNumberString(data.daysPerYear) || "220",
+    employees: asNumberString(data.employees) || "1",
     amount: asNumberString(data.amount),
     amountUnit: asString(data.unit),
     kgCo2eOverride: asNumberString(data.kgCo2eOverride),

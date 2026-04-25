@@ -120,4 +120,16 @@ export const emissionFactors: EmissionFactorSeed[] = [
   { category: "BUSINESS_TRAVEL", subtype: "car_petrol_avg",   unit: "km",    kgCo2ePerUnit: 0.16844, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Per vehicle.km, not per passenger.km. Petrol average car." },
   { category: "BUSINESS_TRAVEL", subtype: "car_diesel_avg",   unit: "km",    kgCo2ePerUnit: 0.16443, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Per vehicle.km. Diesel average car." },
   { category: "BUSINESS_TRAVEL", subtype: "hotel_night",      unit: "night", kgCo2ePerUnit: 10.4,    source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Commercial accommodation, global avg per occupied room-night." },
+
+  // ─── Scope 3 — Employee commuting ────────────────────────────
+  // Same factor magnitudes as business travel for shared modes; metro
+  // factor is approximated from EU rail mix. walk + bicycle deliberately
+  // omitted — the calc helper short-circuits those modes to zero so the
+  // table doesn't carry placeholder rows.
+  { category: "EMPLOYEE_COMMUTING", subtype: "car_petrol_avg", unit: "km",  kgCo2ePerUnit: 0.16844, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "EMPLOYEE_COMMUTING", subtype: "car_diesel_avg", unit: "km",  kgCo2ePerUnit: 0.16443, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "EMPLOYEE_COMMUTING", subtype: "bus_coach",      unit: "pkm", kgCo2ePerUnit: 0.02732, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "EMPLOYEE_COMMUTING", subtype: "rail_national",  unit: "pkm", kgCo2ePerUnit: 0.03694, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "EMPLOYEE_COMMUTING", subtype: "metro_subway",   unit: "pkm", kgCo2ePerUnit: 0.02780, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Light rail / metro / subway." },
+  { category: "EMPLOYEE_COMMUTING", subtype: "scooter",        unit: "km",  kgCo2ePerUnit: 0.05823, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Petrol-powered motor scooter." },
 ];

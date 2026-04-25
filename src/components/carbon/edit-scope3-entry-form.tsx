@@ -11,7 +11,9 @@ import {
 } from "@/app/(app)/carbon-footprint/value-chain/actions";
 import {
   BUSINESS_TRAVEL_MODES,
+  EMPLOYEE_COMMUTING_MODES,
   type BusinessTravelMode,
+  type EmployeeCommutingMode,
   type Scope3CategoryValue,
 } from "@/lib/schemas/scope3.schema";
 import { REGIONS } from "@/lib/carbon-options";
@@ -40,6 +42,17 @@ const TRAVEL_MODE_LABELS: Record<BusinessTravelMode, string> = {
   hotel_night: "Hotel (per night)",
 };
 
+const COMMUTING_MODE_LABELS: Record<EmployeeCommutingMode, string> = {
+  car_petrol_avg: "Car — petrol",
+  car_diesel_avg: "Car — diesel",
+  bus_coach: "Bus / coach",
+  rail_national: "Train (national)",
+  metro_subway: "Metro / subway",
+  bicycle: "Bicycle (zero emissions)",
+  walk: "Walk (zero emissions)",
+  scooter: "Motor scooter",
+};
+
 export type Scope3EntryInitial = {
   id: string;
   category: Scope3CategoryValue;
@@ -47,7 +60,7 @@ export type Scope3EntryInitial = {
   month: string; // YYYY-MM
   siteId: string | null;
   notes: string | null;
-  // BUSINESS_TRAVEL fields (one of these is populated when category matches).
+  // BUSINESS_TRAVEL fields (populated when category matches).
   travelMode: BusinessTravelMode | null;
   distanceKm: string;
   passengers: string;
@@ -55,6 +68,11 @@ export type Scope3EntryInitial = {
   region: string;
   origin: string;
   destination: string;
+  // EMPLOYEE_COMMUTING fields (populated when category matches).
+  commutingMode: EmployeeCommutingMode | null;
+  distancePerDayKm: string;
+  daysPerYear: string;
+  employees: string;
   // Generic fallback
   amount: string;
   amountUnit: string;
@@ -92,11 +110,21 @@ export function EditScope3EntryForm({
   const [origin, setOrigin] = React.useState(entry.origin);
   const [destination, setDestination] = React.useState(entry.destination);
 
+  const [commutingMode, setCommutingMode] = React.useState<EmployeeCommutingMode>(
+    entry.commutingMode ?? "car_petrol_avg",
+  );
+  const [distancePerDayKm, setDistancePerDayKm] = React.useState(
+    entry.distancePerDayKm,
+  );
+  const [daysPerYear, setDaysPerYear] = React.useState(entry.daysPerYear || "220");
+  const [employees, setEmployees] = React.useState(entry.employees || "1");
+
   const [amount, setAmount] = React.useState(entry.amount);
   const [amountUnit, setAmountUnit] = React.useState(entry.amountUnit);
   const [kgCo2eOverride, setKgCo2eOverride] = React.useState(entry.kgCo2eOverride);
 
   const isTravel = entry.category === "BUSINESS_TRAVEL";
+  const isCommuting = entry.category === "EMPLOYEE_COMMUTING";
   const isHotel = isTravel && travelMode === "hotel_night";
 
   function buildPayload(): Record<string, unknown> {
@@ -113,6 +141,22 @@ export function EditScope3EntryForm({
       }
       if (origin) data.origin = origin;
       if (destination) data.destination = destination;
+      return {
+        description,
+        month,
+        siteId: siteId || undefined,
+        notes: notes || undefined,
+        data,
+      };
+    }
+    if (isCommuting) {
+      const data: Record<string, unknown> = {
+        mode: commutingMode,
+        distancePerDayKm: Number(distancePerDayKm || "0"),
+        daysPerYear: Number(daysPerYear || "220"),
+        employees: Number(employees || "1"),
+        region,
+      };
       return {
         description,
         month,
@@ -193,7 +237,66 @@ export function EditScope3EntryForm({
             </Field>
           </div>
 
-          {isTravel ? (
+          {isCommuting ? (
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Commuting details
+              </p>
+              <Field>
+                <FieldLabel htmlFor="commutingMode">Mode</FieldLabel>
+                <select
+                  id="commutingMode"
+                  value={commutingMode}
+                  onChange={(e) =>
+                    setCommutingMode(e.target.value as EmployeeCommutingMode)
+                  }
+                  className={selectClass}
+                >
+                  {EMPLOYEE_COMMUTING_MODES.map((m) => (
+                    <option key={m} value={m}>
+                      {COMMUTING_MODE_LABELS[m]}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                <Field>
+                  <FieldLabel htmlFor="distancePerDayKm">
+                    Distance / day (km)
+                  </FieldLabel>
+                  <Input
+                    id="distancePerDayKm"
+                    type="number"
+                    step="0.1"
+                    min={0}
+                    value={distancePerDayKm}
+                    onChange={(e) => setDistancePerDayKm(e.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="daysPerYear">Days / year</FieldLabel>
+                  <Input
+                    id="daysPerYear"
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={daysPerYear}
+                    onChange={(e) => setDaysPerYear(e.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="employees">Employees</FieldLabel>
+                  <Input
+                    id="employees"
+                    type="number"
+                    min={1}
+                    value={employees}
+                    onChange={(e) => setEmployees(e.target.value)}
+                  />
+                </Field>
+              </div>
+            </div>
+          ) : isTravel ? (
             <div className="rounded-lg border bg-muted/20 p-3">
               <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Travel details

@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import type {
   BusinessTravelData,
+  EmployeeCommutingData,
   Scope3CategoryValue,
 } from "@/lib/schemas/scope3.schema";
 
@@ -24,8 +25,10 @@ const ZERO: Scope3Computation = {
   factorSnapshot: null,
 };
 
+type FactorCategory = "BUSINESS_TRAVEL" | "EMPLOYEE_COMMUTING" | "PURCHASED_GOODS";
+
 async function findFactor(opts: {
-  category: "BUSINESS_TRAVEL" | "EMPLOYEE_COMMUTING" | "PURCHASED_GOODS";
+  category: FactorCategory;
   subtype: string;
   region: string;
   companyId: string;
@@ -117,11 +120,44 @@ export async function computeBusinessTravelEmission(
   };
 }
 
+export async function computeEmployeeCommutingEmission(
+  companyId: string,
+  data: EmployeeCommutingData,
+): Promise<Scope3Computation> {
+  // Walk + bicycle have no factor row in the seed (kgCo2e/unit = 0). We
+  // still want the entry to record cleanly, so short-circuit to zero.
+  if (data.mode === "walk" || data.mode === "bicycle") {
+    return { factorId: null, kgCo2e: 0, factorSnapshot: null };
+  }
+
+  const factor = await findFactor({
+    category: "EMPLOYEE_COMMUTING",
+    subtype: data.mode,
+    region: data.region,
+    companyId,
+  });
+  if (!factor) return ZERO;
+
+  // Annual activity: per-employee km × days × employees. Per-vehicle factors
+  // (car_*) ignore passenger count — but for commuting we assume the
+  // employee is the lone occupant since it's their commute. So vehicle km
+  // = passenger km here.
+  const annualActivity =
+    data.distancePerDayKm * data.daysPerYear * data.employees;
+  const kgCo2e = Number(factor.kgCo2ePerUnit) * annualActivity;
+
+  return {
+    factorId: factor.id,
+    kgCo2e,
+    factorSnapshot: snapshot(factor),
+  };
+}
+
 /**
- * Dispatch on category — for BUSINESS_TRAVEL we run the full calc; for
- * other categories we accept a kgCo2eOverride from the form (interim
- * until the dedicated forms ship). When neither is available the entry
- * is persisted with NULL emissions.
+ * Dispatch on category — BUSINESS_TRAVEL and EMPLOYEE_COMMUTING run the
+ * full calc; the other 5 categories accept a kgCo2eOverride from the
+ * generic form. When neither is available the entry is persisted with
+ * NULL emissions.
  */
 export async function computeScope3Emission(opts: {
   companyId: string;
@@ -132,6 +168,12 @@ export async function computeScope3Emission(opts: {
     return computeBusinessTravelEmission(
       opts.companyId,
       opts.data as BusinessTravelData,
+    );
+  }
+  if (opts.category === "EMPLOYEE_COMMUTING") {
+    return computeEmployeeCommutingEmission(
+      opts.companyId,
+      opts.data as EmployeeCommutingData,
     );
   }
 

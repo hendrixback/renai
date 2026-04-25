@@ -10,8 +10,10 @@ import {
 } from "@/app/(app)/carbon-footprint/value-chain/actions";
 import {
   BUSINESS_TRAVEL_MODES,
+  EMPLOYEE_COMMUTING_MODES,
   SCOPE3_CATEGORIES,
   type BusinessTravelMode,
+  type EmployeeCommutingMode,
   type Scope3CategoryValue,
 } from "@/lib/schemas/scope3.schema";
 import { REGIONS } from "@/lib/carbon-options";
@@ -58,6 +60,17 @@ const TRAVEL_MODE_LABELS: Record<BusinessTravelMode, string> = {
   hotel_night: "Hotel (per night)",
 };
 
+const COMMUTING_MODE_LABELS: Record<EmployeeCommutingMode, string> = {
+  car_petrol_avg: "Car — petrol",
+  car_diesel_avg: "Car — diesel",
+  bus_coach: "Bus / coach",
+  rail_national: "Train (national)",
+  metro_subway: "Metro / subway",
+  bicycle: "Bicycle (zero emissions)",
+  walk: "Walk (zero emissions)",
+  scooter: "Motor scooter",
+};
+
 function FieldError({ errors }: { errors?: string[] }) {
   if (!errors?.length) return null;
   return <p className="text-sm text-destructive">{errors[0]}</p>;
@@ -86,7 +99,14 @@ export function RegisterScope3Dialog({ sites }: { sites: Site[] }) {
   const [origin, setOrigin] = React.useState("");
   const [destination, setDestination] = React.useState("");
 
-  // Generic fallback (other 6 categories)
+  // EMPLOYEE_COMMUTING fields
+  const [commutingMode, setCommutingMode] =
+    React.useState<EmployeeCommutingMode>("car_petrol_avg");
+  const [distancePerDayKm, setDistancePerDayKm] = React.useState("");
+  const [daysPerYear, setDaysPerYear] = React.useState("220");
+  const [employees, setEmployees] = React.useState("1");
+
+  // Generic fallback (other 5 categories)
   const [amount, setAmount] = React.useState("");
   const [amountUnit, setAmountUnit] = React.useState("");
   const [kgCo2eOverride, setKgCo2eOverride] = React.useState("");
@@ -104,6 +124,10 @@ export function RegisterScope3Dialog({ sites }: { sites: Site[] }) {
     setRegion("GLOBAL");
     setOrigin("");
     setDestination("");
+    setCommutingMode("car_petrol_avg");
+    setDistancePerDayKm("");
+    setDaysPerYear("220");
+    setEmployees("1");
     setAmount("");
     setAmountUnit("");
     setKgCo2eOverride("");
@@ -124,6 +148,23 @@ export function RegisterScope3Dialog({ sites }: { sites: Site[] }) {
       }
       if (origin) data.origin = origin;
       if (destination) data.destination = destination;
+      return {
+        category,
+        description,
+        month,
+        siteId: siteId || undefined,
+        notes: notes || undefined,
+        data,
+      };
+    }
+    if (category === "EMPLOYEE_COMMUTING") {
+      const data: Record<string, unknown> = {
+        mode: commutingMode,
+        distancePerDayKm: Number(distancePerDayKm || "0"),
+        daysPerYear: Number(daysPerYear || "220"),
+        employees: Number(employees || "1"),
+        region,
+      };
       return {
         category,
         description,
@@ -162,6 +203,7 @@ export function RegisterScope3Dialog({ sites }: { sites: Site[] }) {
   }
 
   const isTravel = category === "BUSINESS_TRAVEL";
+  const isCommuting = category === "EMPLOYEE_COMMUTING";
   const isHotel = isTravel && travelMode === "hotel_night";
 
   return (
@@ -245,7 +287,72 @@ export function RegisterScope3Dialog({ sites }: { sites: Site[] }) {
             </Field>
           </div>
 
-          {isTravel ? (
+          {isCommuting ? (
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Commuting details
+              </p>
+              <Field>
+                <FieldLabel htmlFor="commutingMode">Mode</FieldLabel>
+                <select
+                  id="commutingMode"
+                  value={commutingMode}
+                  onChange={(e) =>
+                    setCommutingMode(e.target.value as EmployeeCommutingMode)
+                  }
+                  className={selectClass}
+                >
+                  {EMPLOYEE_COMMUTING_MODES.map((m) => (
+                    <option key={m} value={m}>
+                      {COMMUTING_MODE_LABELS[m]}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                <Field>
+                  <FieldLabel htmlFor="distancePerDayKm">
+                    Distance / day (km)
+                  </FieldLabel>
+                  <Input
+                    id="distancePerDayKm"
+                    type="number"
+                    step="0.1"
+                    min={0}
+                    value={distancePerDayKm}
+                    onChange={(e) => setDistancePerDayKm(e.target.value)}
+                    placeholder="Round-trip"
+                  />
+                  <FieldError errors={state.fieldErrors["data.distancePerDayKm"]} />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="daysPerYear">Days / year</FieldLabel>
+                  <Input
+                    id="daysPerYear"
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={daysPerYear}
+                    onChange={(e) => setDaysPerYear(e.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="employees">Employees</FieldLabel>
+                  <Input
+                    id="employees"
+                    type="number"
+                    min={1}
+                    value={employees}
+                    onChange={(e) => setEmployees(e.target.value)}
+                  />
+                </Field>
+              </div>
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                Annual emissions = factor × distance × days × employees.
+                Walk + bicycle modes record as zero emissions.
+              </p>
+            </div>
+          ) : isTravel ? (
             <>
               <div className="rounded-lg border bg-muted/20 p-3">
                 <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
