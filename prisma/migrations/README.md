@@ -21,7 +21,8 @@ landed on any environment.
 | 0004 | `scope2_dual_calc` | Adds `locationBasedKgCo2e` + `marketBasedKgCo2e` to `ElectricityEntry` for GHG-Protocol-compliant dual accounting. Legacy `kgCo2e` preserved; new rows mirror `marketBasedKgCo2e` into it. | zero-downtime (2 nullable columns) | **no — will apply on next deploy** |
 | 0005 | `scope1_emission_source_type` | Adds `EmissionSourceType` enum (11 values per Spec §10.4) + nullable `emissionSourceType` column on FuelEntry. Independent from fuel type — the same fuel can be burned in different source contexts for audit reporting. | zero-downtime (enum add + nullable column) | **no — will apply on next deploy** |
 | 0006 | `activity_type_record_exported` | Adds `RECORD_EXPORTED` to the `ActivityType` enum so export route handlers can audit-log extractions (format + filters + row count in metadata). | zero-downtime (enum value add) | **no — will apply on next deploy** |
-| 0007 | `scope3_entry` | Foundation for Phase 4a Scope 3. Adds `Scope3Category` enum (7 GHG-Protocol categories), 3 new `EmissionCategory` values (BUSINESS_TRAVEL, EMPLOYEE_COMMUTING, PURCHASED_GOODS), and the polymorphic `Scope3Entry` table with JSONB `categoryData` validated server-side per category. | zero-downtime (additive only) | **no — will apply on next deploy** |
+| 0007 | `scope3_entry` | Foundation for Phase 4a Scope 3. Adds `Scope3Category` enum (7 GHG-Protocol categories), 3 new `EmissionCategory` values (BUSINESS_TRAVEL, EMPLOYEE_COMMUTING, PURCHASED_GOODS), and the polymorphic `Scope3Entry` table with JSONB `categoryData` validated server-side per category. | zero-downtime (additive only) | yes (deployed 2026-04-25) |
+| 0008 | `production_volume` | Phase 4d (Production Intensity). New `ProductionVolume` table — single persistent input to the PEF view. PEF itself is computed live (Amendment A2) so no PEFRecord entity. | zero-downtime (new table only) | **no — will apply on next deploy** |
 
 ---
 

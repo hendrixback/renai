@@ -14,7 +14,9 @@ import {
 import { getCurrentContext } from "@/lib/auth";
 import { getCarbonSummary } from "@/lib/carbon";
 import { getDashboardData } from "@/lib/dashboard";
+import { flags } from "@/lib/flags";
 import { prisma } from "@/lib/prisma";
+import { computePef } from "@/lib/production";
 import { DashboardFilters } from "@/components/dashboard/dashboard-filters";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,7 +55,20 @@ export default async function DashboardPage({
     siteId: sp.site || undefined,
   };
 
-  const [data, carbon, activitiesRaw, sites] = await Promise.all([
+  // PEF — only fetched when the flag is on; falls back to null for the
+  // KPI's "—" state otherwise. Gives the dashboard a reading even if the
+  // user hasn't visited /carbon-footprint/production yet.
+  const pefYear = filter.year ?? new Date().getUTCFullYear();
+  const pefPromise = flags.productionIntensityEnabled
+    ? computePef({
+        companyId: ctx.company.id,
+        year: pefYear,
+        scopes: { s1: true, s2: true, s3: true },
+        siteId: filter.siteId,
+      })
+    : Promise.resolve(null);
+
+  const [data, carbon, activitiesRaw, sites, pef] = await Promise.all([
     getDashboardData(ctx.company.id, filter),
     getCarbonSummary(ctx.company.id, filter),
     prisma.activityLog.findMany({
@@ -67,6 +82,7 @@ export default async function DashboardPage({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    pefPromise,
   ]);
 
   const { kpi, byCategory, byTreatment, recentFlows, alerts, meta } = data;
@@ -236,6 +252,38 @@ export default async function DashboardPage({
             accent={carbon.total > 0 ? "success" : "default"}
           />
         </div>
+
+        {/* Production intensity (PEF) — Spec §13 + Amendment A2.
+            Computed live from carbon totals ÷ ProductionVolume sums for
+            the active year. Hidden when the flag is off. */}
+        {pef ? (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <KpiCard
+              label={`Production Emission Factor — ${pefYear}`}
+              value={
+                pef.pef !== null ? (
+                  <>
+                    {nf.format(pef.pef)}
+                    <span className="ml-1 text-base font-normal text-muted-foreground">
+                      kgCO₂e/{pef.denominatorUnit}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )
+              }
+              caption={
+                pef.pef !== null
+                  ? `${nf.format(pef.numeratorKg / 1000)} tCO₂e ÷ ${nf.format(pef.denominatorVolume)} ${pef.denominatorUnit}`
+                  : pef.rowCount === 0
+                    ? "Record production volume to enable PEF"
+                    : "Mixed units — fix on /carbon-footprint/production"
+              }
+              icon={<Scale3DIcon />}
+              accent={pef.pef !== null ? "success" : "default"}
+            />
+          </div>
+        ) : null}
 
         {/* Empty-state CTA — fires when no waste flows AND no carbon entries
             have been registered yet. Skips once the user has any data so

@@ -35,6 +35,8 @@ model User {
   updatedElectricityEntries ElectricityEntry[] @relation("ElectricityEntryUpdatedBy")
   createdScope3Entries      Scope3Entry[]      @relation("Scope3EntryCreatedBy")
   updatedScope3Entries      Scope3Entry[]      @relation("Scope3EntryUpdatedBy")
+  createdProductionVolumes  ProductionVolume[] @relation("ProductionVolumeCreatedBy")
+  updatedProductionVolumes  ProductionVolume[] @relation("ProductionVolumeUpdatedBy")
   uploadedDocuments         Document[]         @relation("DocumentUploadedBy")
   linkedDocuments           DocumentLink[]     @relation("DocumentLinkLinkedBy")
   activityLogs              ActivityLog[]
@@ -66,6 +68,7 @@ model Company {
   fuelEntries        FuelEntry[]
   electricityEntries ElectricityEntry[]
   scope3Entries      Scope3Entry[]
+  productionVolumes  ProductionVolume[]
   emissionFactors    EmissionFactor[]
   documents          Document[]
   activityLogs       ActivityLog[]
@@ -140,6 +143,7 @@ model Site {
   fuelEntries        FuelEntry[]
   electricityEntries ElectricityEntry[]
   scope3Entries      Scope3Entry[]
+  productionVolumes  ProductionVolume[]
   documents          Document[]
 
   @@index([companyId])
@@ -327,6 +331,41 @@ model Scope3Entry {
   @@index([companyId, month])
   @@index([companyId, reportingYear])
   @@index([companyId, category])
+  @@index([siteId])
+  @@index([recordStatus])
+  @@index([deletedAt])
+}
+
+/// Production volume — per Amendment A2, this is the only persisted
+/// input to the Production Emission Factor (PEF) view. PEF itself is
+/// always computed live as `totalEmissions(period, scopes) / volume`,
+/// never stored, to avoid stale snapshots when a Scope 1/2/3 entry
+/// lands after the volume row was created.
+model ProductionVolume {
+  id             String       @id @default(cuid())
+  companyId      String
+  siteId         String?
+  productLabel   String       // "Standard textile bolt", "Bottling line A", ...
+  month          DateTime     // first day of accounting month (UTC)
+  reportingYear  Int
+  reportingMonth Int
+  volume         Decimal      @db.Decimal(14, 3)
+  unit           String       // "ton", "piece", "m3", "kg", "L", ... (free)
+  notes          String?
+  recordStatus   RecordStatus @default(ACTIVE)
+  createdById    String?
+  updatedById    String?
+  deletedAt      DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  site      Site?   @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  createdBy User?   @relation("ProductionVolumeCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?   @relation("ProductionVolumeUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([companyId, month])
+  @@index([companyId, reportingYear])
   @@index([siteId])
   @@index([recordStatus])
   @@index([deletedAt])
