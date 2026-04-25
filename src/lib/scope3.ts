@@ -6,6 +6,8 @@ import type {
   BusinessTravelData,
   EmployeeCommutingData,
   FreightData,
+  FuelEnergyData,
+  FuelEnergySubtype,
   Scope3CategoryValue,
   WasteGeneratedData,
 } from "@/lib/schemas/scope3.schema";
@@ -32,7 +34,19 @@ type FactorCategory =
   | "BUSINESS_TRAVEL"
   | "EMPLOYEE_COMMUTING"
   | "PURCHASED_GOODS"
-  | "TRANSPORT";
+  | "TRANSPORT"
+  | "FUEL"
+  | "ELECTRICITY";
+
+const FUEL_ENERGY_LOOKUP: Record<FuelEnergySubtype, "FUEL" | "ELECTRICITY"> = {
+  wtt_diesel: "FUEL",
+  wtt_petrol: "FUEL",
+  wtt_natural_gas: "FUEL",
+  wtt_lpg: "FUEL",
+  wtt_heating_oil: "FUEL",
+  wtt_coal: "FUEL",
+  wtt_electricity: "ELECTRICITY",
+};
 
 async function findFactor(opts: {
   category: FactorCategory;
@@ -216,11 +230,34 @@ export async function computeWasteGeneratedEmission(
   };
 }
 
+export async function computeFuelEnergyEmission(
+  companyId: string,
+  data: FuelEnergyData,
+): Promise<Scope3Computation> {
+  // Subtypes are prefixed `wtt_`; their factor row lives under either
+  // FUEL or ELECTRICITY EmissionCategory depending on the resource.
+  const factor = await findFactor({
+    category: FUEL_ENERGY_LOOKUP[data.subtype],
+    subtype: data.subtype,
+    region: data.region,
+    companyId,
+  });
+  if (!factor) return ZERO;
+
+  const kgCo2e = Number(factor.kgCo2ePerUnit) * data.quantity;
+  return {
+    factorId: factor.id,
+    kgCo2e,
+    factorSnapshot: snapshot(factor),
+  };
+}
+
 /**
  * Dispatch on category — BUSINESS_TRAVEL, EMPLOYEE_COMMUTING, the two
- * freight categories, and WASTE_GENERATED run the full calc; the
- * remaining 2 accept a kgCo2eOverride via the generic form. When
- * neither is available the entry is persisted with NULL emissions.
+ * freight categories, WASTE_GENERATED, and FUEL_ENERGY_RELATED run the
+ * full calc; the remaining categories accept a kgCo2eOverride via the
+ * generic form. When neither is available the entry is persisted with
+ * NULL emissions.
  */
 export async function computeScope3Emission(opts: {
   companyId: string;
@@ -250,6 +287,9 @@ export async function computeScope3Emission(opts: {
       opts.companyId,
       opts.data as WasteGeneratedData,
     );
+  }
+  if (opts.category === "FUEL_ENERGY_RELATED") {
+    return computeFuelEnergyEmission(opts.companyId, opts.data as FuelEnergyData);
   }
 
   const generic = opts.data as { kgCo2eOverride?: number } | null;

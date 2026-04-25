@@ -142,6 +142,34 @@ export const wasteGeneratedDataSchema = z.object({
 export type WasteGeneratedData = z.infer<typeof wasteGeneratedDataSchema>;
 
 /**
+ * FUEL_ENERGY_RELATED (Cat 3) covers well-to-tank (WTT) emissions —
+ * the upstream supply-chain footprint of fuels + electricity *before*
+ * combustion / consumption. Subtypes are prefixed `wtt_` so they sit
+ * alongside the direct-combustion factors in the same EmissionFactor
+ * table without colliding.
+ */
+export const FUEL_ENERGY_SUBTYPES = [
+  "wtt_diesel",
+  "wtt_petrol",
+  "wtt_natural_gas",
+  "wtt_lpg",
+  "wtt_heating_oil",
+  "wtt_coal",
+  "wtt_electricity",
+] as const;
+export const fuelEnergySubtypeSchema = z.enum(FUEL_ENERGY_SUBTYPES);
+export type FuelEnergySubtype = z.infer<typeof fuelEnergySubtypeSchema>;
+
+export const fuelEnergyDataSchema = z.object({
+  subtype: fuelEnergySubtypeSchema,
+  quantity: z.number().positive(),
+  /** Unit of the quantity (informational; the factor's unit governs the calc). */
+  unit: z.string().trim().max(8),
+  region: z.string().min(2).max(8).default("GLOBAL"),
+});
+export type FuelEnergyData = z.infer<typeof fuelEnergyDataSchema>;
+
+/**
  * EMPLOYEE_COMMUTING payload (GHG Protocol Cat 7).
  * Activity-based: distance per day × days per year × employees → annual
  * pkm or vehicle.km, multiplied by the matching factor.
@@ -189,6 +217,8 @@ export const registerScope3Schema = z
       parsed = freightDataSchema.safeParse(value.data);
     } else if (value.category === "WASTE_GENERATED") {
       parsed = wasteGeneratedDataSchema.safeParse(value.data);
+    } else if (value.category === "FUEL_ENERGY_RELATED") {
+      parsed = fuelEnergyDataSchema.safeParse(value.data);
     } else {
       parsed = genericScope3DataSchema.safeParse(value.data);
     }

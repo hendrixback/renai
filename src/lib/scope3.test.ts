@@ -17,6 +17,7 @@ import {
   computeBusinessTravelEmission,
   computeEmployeeCommutingEmission,
   computeFreightEmission,
+  computeFuelEnergyEmission,
   computeWasteGeneratedEmission,
 } from "./scope3";
 
@@ -273,5 +274,48 @@ describe("computeWasteGeneratedEmission", () => {
       kgCo2e: null,
       factorSnapshot: null,
     });
+  });
+});
+
+describe("computeFuelEnergyEmission (Cat 3 / WTT)", () => {
+  it("multiplies factor × quantity for fuel WTT factors", async () => {
+    findFirst.mockResolvedValueOnce({
+      ...baseFactor,
+      category: "FUEL",
+      subtype: "wtt_diesel",
+      unit: "L",
+      kgCo2ePerUnit: 0.6028,
+    });
+    const result = await computeFuelEnergyEmission("co1", {
+      subtype: "wtt_diesel",
+      quantity: 1000,
+      unit: "L",
+      region: "GLOBAL",
+    });
+    expect(result.kgCo2e).toBeCloseTo(602.8, 1);
+    expect(result.factorSnapshot).toMatchObject({ type: "wtt_diesel" });
+  });
+
+  it("looks up wtt_electricity under the ELECTRICITY category", async () => {
+    findFirst.mockResolvedValueOnce({
+      ...baseFactor,
+      category: "ELECTRICITY",
+      subtype: "wtt_electricity",
+      unit: "kWh",
+      kgCo2ePerUnit: 0.0507,
+    });
+    const result = await computeFuelEnergyEmission("co1", {
+      subtype: "wtt_electricity",
+      quantity: 10000,
+      unit: "kWh",
+      region: "GLOBAL",
+    });
+    expect(result.kgCo2e).toBeCloseTo(507, 1);
+    // Confirm the lookup ran for ELECTRICITY (not FUEL).
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ category: "ELECTRICITY" }),
+      }),
+    );
   });
 });

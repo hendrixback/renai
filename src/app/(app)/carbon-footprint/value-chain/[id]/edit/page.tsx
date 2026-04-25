@@ -7,6 +7,7 @@ import type {
   BusinessTravelMode,
   EmployeeCommutingMode,
   FreightMode,
+  FuelEnergySubtype,
   Scope3CategoryValue,
 } from "@/lib/schemas/scope3.schema";
 import { PageHeader } from "@/components/page-header";
@@ -76,6 +77,10 @@ export default async function EditScope3Page({
   const freightMode = isFreight
     ? (asString(data.mode) as FreightMode)
     : null;
+  const isFuelEnergy = entry.category === "FUEL_ENERGY_RELATED";
+  const fuelEnergySubtype = isFuelEnergy
+    ? (asString(data.subtype) as FuelEnergySubtype)
+    : null;
 
   const initial: Scope3EntryInitial = {
     id: entry.id,
@@ -101,8 +106,10 @@ export default async function EditScope3Page({
     freightOrigin: isFreight ? asString(data.origin) : "",
     freightDestination: isFreight ? asString(data.destination) : "",
     wasteFlowId: asString(data.wasteFlowId),
+    fuelEnergySubtype: fuelEnergySubtype || null,
+    fuelEnergyQuantity: isFuelEnergy ? asNumberString(data.quantity) : "",
     amount: asNumberString(data.amount),
-    amountUnit: asString(data.unit),
+    amountUnit: isFuelEnergy ? "" : asString(data.unit),
     kgCo2eOverride: asNumberString(data.kgCo2eOverride),
   };
 

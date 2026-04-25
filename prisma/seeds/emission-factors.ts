@@ -145,4 +145,17 @@ export const emissionFactors: EmissionFactorSeed[] = [
   { category: "TRANSPORT", subtype: "ship_container",       unit: "tkm", kgCo2ePerUnit: 0.01300, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Container ship, average size." },
   { category: "TRANSPORT", subtype: "air_freight_long_haul",unit: "tkm", kgCo2ePerUnit: 0.60000, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "International air freight, long haul." },
   { category: "TRANSPORT", subtype: "inland_waterway",      unit: "tkm", kgCo2ePerUnit: 0.03000, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+
+  // ─── Scope 3 — Fuel & Energy related (WTT, Cat 3) ────────────
+  // DEFRA 2024 well-to-tank conversion factors. Captures the upstream
+  // supply-chain footprint *before* combustion (extraction, processing,
+  // distribution losses). Subtype is prefixed `wtt_` to distinguish
+  // from the Scope 1 direct-combustion factors with the same fuel name.
+  { category: "FUEL",        subtype: "wtt_diesel",       unit: "L",   kgCo2ePerUnit: 0.60280, source: "DEFRA 2024 WTT", region: "GLOBAL", year: 2024 },
+  { category: "FUEL",        subtype: "wtt_petrol",       unit: "L",   kgCo2ePerUnit: 0.59000, source: "DEFRA 2024 WTT", region: "GLOBAL", year: 2024 },
+  { category: "FUEL",        subtype: "wtt_natural_gas",  unit: "m3",  kgCo2ePerUnit: 0.34010, source: "DEFRA 2024 WTT", region: "GLOBAL", year: 2024 },
+  { category: "FUEL",        subtype: "wtt_lpg",          unit: "L",   kgCo2ePerUnit: 0.18400, source: "DEFRA 2024 WTT", region: "GLOBAL", year: 2024 },
+  { category: "FUEL",        subtype: "wtt_heating_oil",  unit: "L",   kgCo2ePerUnit: 0.60900, source: "DEFRA 2024 WTT", region: "GLOBAL", year: 2024 },
+  { category: "FUEL",        subtype: "wtt_coal",         unit: "kg",  kgCo2ePerUnit: 0.13780, source: "DEFRA 2024 WTT", region: "GLOBAL", year: 2024 },
+  { category: "ELECTRICITY", subtype: "wtt_electricity",  unit: "kWh", kgCo2ePerUnit: 0.05070, source: "DEFRA 2024 WTT", region: "GLOBAL", year: 2024, notes: "Upstream + T&D losses combined." },
 ];

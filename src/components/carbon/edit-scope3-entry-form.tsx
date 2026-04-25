@@ -13,9 +13,11 @@ import {
   BUSINESS_TRAVEL_MODES,
   EMPLOYEE_COMMUTING_MODES,
   FREIGHT_MODES,
+  FUEL_ENERGY_SUBTYPES,
   type BusinessTravelMode,
   type EmployeeCommutingMode,
   type FreightMode,
+  type FuelEnergySubtype,
   type Scope3CategoryValue,
 } from "@/lib/schemas/scope3.schema";
 import { REGIONS } from "@/lib/carbon-options";
@@ -66,6 +68,16 @@ const FREIGHT_MODE_LABELS: Record<FreightMode, string> = {
   inland_waterway: "Inland waterway / barge",
 };
 
+const FUEL_ENERGY_LABELS: Record<FuelEnergySubtype, { label: string; unit: string }> = {
+  wtt_diesel: { label: "Diesel — upstream (WTT)", unit: "L" },
+  wtt_petrol: { label: "Petrol — upstream (WTT)", unit: "L" },
+  wtt_natural_gas: { label: "Natural gas — upstream (WTT)", unit: "m³" },
+  wtt_lpg: { label: "LPG — upstream (WTT)", unit: "L" },
+  wtt_heating_oil: { label: "Heating oil — upstream (WTT)", unit: "L" },
+  wtt_coal: { label: "Coal — upstream (WTT)", unit: "kg" },
+  wtt_electricity: { label: "Electricity — upstream + T&D losses", unit: "kWh" },
+};
+
 export type Scope3EntryInitial = {
   id: string;
   category: Scope3CategoryValue;
@@ -94,6 +106,9 @@ export type Scope3EntryInitial = {
   freightDestination: string;
   // WASTE_GENERATED reference
   wasteFlowId: string;
+  // FUEL_ENERGY_RELATED (Cat 3 / WTT)
+  fuelEnergySubtype: FuelEnergySubtype | null;
+  fuelEnergyQuantity: string;
   // Generic fallback
   amount: string;
   amountUnit: string;
@@ -156,6 +171,13 @@ export function EditScope3EntryForm({
 
   const [wasteFlowId, setWasteFlowId] = React.useState(entry.wasteFlowId);
 
+  const [fuelEnergySubtype, setFuelEnergySubtype] = React.useState<FuelEnergySubtype>(
+    entry.fuelEnergySubtype ?? "wtt_diesel",
+  );
+  const [fuelEnergyQuantity, setFuelEnergyQuantity] = React.useState(
+    entry.fuelEnergyQuantity,
+  );
+
   const [amount, setAmount] = React.useState(entry.amount);
   const [amountUnit, setAmountUnit] = React.useState(entry.amountUnit);
   const [kgCo2eOverride, setKgCo2eOverride] = React.useState(entry.kgCo2eOverride);
@@ -166,6 +188,7 @@ export function EditScope3EntryForm({
     entry.category === "UPSTREAM_TRANSPORT" ||
     entry.category === "DOWNSTREAM_TRANSPORT";
   const isWasteRef = entry.category === "WASTE_GENERATED";
+  const isFuelEnergy = entry.category === "FUEL_ENERGY_RELATED";
   const isHotel = isTravel && travelMode === "hotel_night";
 
   function buildPayload(): Record<string, unknown> {
@@ -227,6 +250,21 @@ export function EditScope3EntryForm({
       const matched = wasteFlows.find((w) => w.id === wasteFlowId);
       const data: Record<string, unknown> = { wasteFlowId };
       if (matched) data.wasteFlowName = matched.name;
+      return {
+        description,
+        month,
+        siteId: siteId || undefined,
+        notes: notes || undefined,
+        data,
+      };
+    }
+    if (isFuelEnergy) {
+      const data: Record<string, unknown> = {
+        subtype: fuelEnergySubtype,
+        quantity: Number(fuelEnergyQuantity || "0"),
+        unit: FUEL_ENERGY_LABELS[fuelEnergySubtype].unit,
+        region,
+      };
       return {
         description,
         month,
@@ -307,7 +345,60 @@ export function EditScope3EntryForm({
             </Field>
           </div>
 
-          {isWasteRef ? (
+          {isFuelEnergy ? (
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Fuel & energy (well-to-tank)
+              </p>
+              <Field>
+                <FieldLabel htmlFor="fuelEnergySubtype">Resource</FieldLabel>
+                <select
+                  id="fuelEnergySubtype"
+                  value={fuelEnergySubtype}
+                  onChange={(e) =>
+                    setFuelEnergySubtype(e.target.value as FuelEnergySubtype)
+                  }
+                  className={selectClass}
+                >
+                  {FUEL_ENERGY_SUBTYPES.map((s) => (
+                    <option key={s} value={s}>
+                      {FUEL_ENERGY_LABELS[s].label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="fuelEnergyQuantity">
+                    Quantity ({FUEL_ENERGY_LABELS[fuelEnergySubtype].unit})
+                  </FieldLabel>
+                  <Input
+                    id="fuelEnergyQuantity"
+                    type="number"
+                    step="0.001"
+                    min={0}
+                    value={fuelEnergyQuantity}
+                    onChange={(e) => setFuelEnergyQuantity(e.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="region">Region</FieldLabel>
+                  <select
+                    id="region"
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                    className={selectClass}
+                  >
+                    {REGIONS.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+            </div>
+          ) : isWasteRef ? (
             <div className="rounded-lg border bg-muted/20 p-3">
               <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Waste flow link
