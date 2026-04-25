@@ -1,0 +1,120 @@
+import { z } from "zod";
+
+/**
+ * Per-Scope3-category payload schemas. Persisted in `Scope3Entry.categoryData`
+ * (JSONB) and validated server-side at write time. Discriminated by the
+ * `category` field on the parent record so each shape is type-safe.
+ *
+ * In MVP we ship BUSINESS_TRAVEL fully; the other 6 categories are stubs
+ * (raw `description + amount + unit` shape) so the table can hold any
+ * category right away while the dedicated forms ship in follow-ups.
+ */
+
+export const SCOPE3_CATEGORIES = [
+  "PURCHASED_GOODS_SERVICES",
+  "FUEL_ENERGY_RELATED",
+  "UPSTREAM_TRANSPORT",
+  "WASTE_GENERATED",
+  "BUSINESS_TRAVEL",
+  "EMPLOYEE_COMMUTING",
+  "DOWNSTREAM_TRANSPORT",
+] as const;
+export const scope3CategorySchema = z.enum(SCOPE3_CATEGORIES);
+export type Scope3CategoryValue = z.infer<typeof scope3CategorySchema>;
+
+export const BUSINESS_TRAVEL_MODES = [
+  "air_short_haul",
+  "air_long_haul",
+  "air_domestic",
+  "rail_national",
+  "rail_international",
+  "taxi_regular",
+  "bus_coach",
+  "car_petrol_avg",
+  "car_diesel_avg",
+  "hotel_night",
+] as const;
+export const businessTravelModeSchema = z.enum(BUSINESS_TRAVEL_MODES);
+export type BusinessTravelMode = z.infer<typeof businessTravelModeSchema>;
+
+/**
+ * BUSINESS_TRAVEL payload. The activity input depends on the mode:
+ *  - travel modes: distanceKm + passengers (defaults to 1)
+ *  - hotel_night: nights only (passengers/distance ignored)
+ */
+export const businessTravelDataSchema = z
+  .object({
+    mode: businessTravelModeSchema,
+    distanceKm: z.number().positive().optional(),
+    passengers: z.number().int().positive().default(1),
+    nights: z.number().int().positive().optional(),
+    region: z.string().min(2).max(8).default("GLOBAL"),
+    origin: z.string().trim().max(120).optional(),
+    destination: z.string().trim().max(120).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.mode === "hotel_night") {
+      if (!data.nights) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["nights"],
+          message: "Number of nights is required for hotel stays.",
+        });
+      }
+    } else if (!data.distanceKm) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["distanceKm"],
+        message: "Distance (km) is required for travel modes.",
+      });
+    }
+  });
+export type BusinessTravelData = z.infer<typeof businessTravelDataSchema>;
+
+/**
+ * Stub payload for the not-yet-shipped categories — we still want the
+ * table to accept entries for them so customers can record manually-
+ * computed totals while we build the dedicated forms.
+ */
+export const genericScope3DataSchema = z.object({
+  amount: z.number().positive().optional(),
+  unit: z.string().trim().max(40).optional(),
+  /** Pre-computed kgCO₂e when the user has their own number. Bypasses
+   *  the factor lookup. */
+  kgCo2eOverride: z.number().nonnegative().optional(),
+});
+export type GenericScope3Data = z.infer<typeof genericScope3DataSchema>;
+
+/**
+ * Top-level register payload. Discriminated on `category` so per-category
+ * shape is enforced.
+ */
+export const registerScope3Schema = z
+  .object({
+    category: scope3CategorySchema,
+    description: z.string().trim().min(1, "Description is required").max(200),
+    month: z
+      .string()
+      .regex(/^\d{4}-\d{2}$/, "Use YYYY-MM"),
+    siteId: z.string().cuid().optional(),
+    notes: z.string().trim().max(2000).optional(),
+    data: z.unknown(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.category === "BUSINESS_TRAVEL") {
+      const parsed = businessTravelDataSchema.safeParse(value.data);
+      if (!parsed.success) {
+        for (const issue of parsed.error.issues) {
+          ctx.addIssue({ ...issue, path: ["data", ...(issue.path ?? [])] });
+        }
+      }
+    } else {
+      const parsed = genericScope3DataSchema.safeParse(value.data);
+      if (!parsed.success) {
+        for (const issue of parsed.error.issues) {
+          ctx.addIssue({ ...issue, path: ["data", ...(issue.path ?? [])] });
+        }
+      }
+    }
+  });
+export type RegisterScope3Input = z.infer<typeof registerScope3Schema>;

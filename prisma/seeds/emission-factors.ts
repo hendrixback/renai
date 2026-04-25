@@ -10,7 +10,11 @@ export type EmissionFactorSeed = {
     | "WASTE_LANDFILL"
     | "WASTE_INCINERATION"
     | "WASTE_RECYCLING"
-    | "WASTE_COMPOSTING";
+    | "WASTE_COMPOSTING"
+    // Scope 3 — added with migration 0007.
+    | "BUSINESS_TRAVEL"
+    | "EMPLOYEE_COMMUTING"
+    | "PURCHASED_GOODS";
   subtype: string;
   unit: string;
   kgCo2ePerUnit: number;
@@ -100,4 +104,20 @@ export const emissionFactors: EmissionFactorSeed[] = [
   // Municipal / mixed — worst case fallback when nothing else matches
   { category: "WASTE_LANDFILL",   subtype: "municipal_mixed", unit: "kg", kgCo2ePerUnit: 0.47, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
   { category: "WASTE_INCINERATION",subtype: "municipal_mixed", unit: "kg", kgCo2ePerUnit: 0.42, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+
+  // ─── Scope 3 — Business travel ───────────────────────────────
+  // DEFRA 2024 GHG conversion factors (Table BT). All passenger.km values
+  // are per single passenger; multiply by km × passengers in the form.
+  // Hotel night uses the global commercial-accommodation average; tenants
+  // with country detail can override.
+  { category: "BUSINESS_TRAVEL", subtype: "air_short_haul",   unit: "pkm",   kgCo2ePerUnit: 0.15839, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Flights <3700km; economy avg." },
+  { category: "BUSINESS_TRAVEL", subtype: "air_long_haul",    unit: "pkm",   kgCo2ePerUnit: 0.14981, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Flights >3700km; economy avg." },
+  { category: "BUSINESS_TRAVEL", subtype: "air_domestic",     unit: "pkm",   kgCo2ePerUnit: 0.24587, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "BUSINESS_TRAVEL", subtype: "rail_national",    unit: "pkm",   kgCo2ePerUnit: 0.03694, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "BUSINESS_TRAVEL", subtype: "rail_international",unit: "pkm",  kgCo2ePerUnit: 0.00446, source: "DEFRA 2024", region: "EU",     year: 2024, notes: "Eurostar / TGV-style HSR mix." },
+  { category: "BUSINESS_TRAVEL", subtype: "taxi_regular",     unit: "pkm",   kgCo2ePerUnit: 0.14758, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "BUSINESS_TRAVEL", subtype: "bus_coach",        unit: "pkm",   kgCo2ePerUnit: 0.02732, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "BUSINESS_TRAVEL", subtype: "car_petrol_avg",   unit: "km",    kgCo2ePerUnit: 0.16844, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Per vehicle.km, not per passenger.km. Petrol average car." },
+  { category: "BUSINESS_TRAVEL", subtype: "car_diesel_avg",   unit: "km",    kgCo2ePerUnit: 0.16443, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Per vehicle.km. Diesel average car." },
+  { category: "BUSINESS_TRAVEL", subtype: "hotel_night",      unit: "night", kgCo2ePerUnit: 10.4,    source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Commercial accommodation, global avg per occupied room-night." },
 ];

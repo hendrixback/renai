@@ -33,6 +33,8 @@ model User {
   updatedFuelEntries        FuelEntry[]        @relation("FuelEntryUpdatedBy")
   createdElectricityEntries ElectricityEntry[] @relation("ElectricityEntryCreatedBy")
   updatedElectricityEntries ElectricityEntry[] @relation("ElectricityEntryUpdatedBy")
+  createdScope3Entries      Scope3Entry[]      @relation("Scope3EntryCreatedBy")
+  updatedScope3Entries      Scope3Entry[]      @relation("Scope3EntryUpdatedBy")
   uploadedDocuments         Document[]         @relation("DocumentUploadedBy")
   linkedDocuments           DocumentLink[]     @relation("DocumentLinkLinkedBy")
   activityLogs              ActivityLog[]
@@ -63,6 +65,7 @@ model Company {
   invitations        Invitation[]
   fuelEntries        FuelEntry[]
   electricityEntries ElectricityEntry[]
+  scope3Entries      Scope3Entry[]
   emissionFactors    EmissionFactor[]
   documents          Document[]
   activityLogs       ActivityLog[]
@@ -136,6 +139,7 @@ model Site {
   wasteFlows         WasteFlow[]
   fuelEntries        FuelEntry[]
   electricityEntries ElectricityEntry[]
+  scope3Entries      Scope3Entry[]
   documents          Document[]
 
   @@index([companyId])
@@ -161,6 +165,7 @@ model EmissionFactor {
   company            Company?           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   fuelEntries        FuelEntry[]
   electricityEntries ElectricityEntry[]
+  scope3Entries      Scope3Entry[]
 
   @@unique([category, subtype, region, year, companyId])
   @@index([category, subtype])
@@ -175,7 +180,25 @@ enum EmissionCategory {
   WASTE_COMPOSTING
   PRODUCTION
   TRANSPORT
+  // Scope 3 categories — added 0007
+  BUSINESS_TRAVEL
+  EMPLOYEE_COMMUTING
+  PURCHASED_GOODS
   OTHER
+}
+
+/// Scope 3 GHG Protocol categories per Spec §12.3. We ship the 7 most
+/// material categories for industrial / manufacturing tenants in MVP;
+/// the remaining 8 (categories 8–15) can land later without schema
+/// changes since `categoryData` is JSONB.
+enum Scope3Category {
+  PURCHASED_GOODS_SERVICES   // Cat 1
+  FUEL_ENERGY_RELATED        // Cat 3
+  UPSTREAM_TRANSPORT         // Cat 4
+  WASTE_GENERATED            // Cat 5
+  BUSINESS_TRAVEL            // Cat 6
+  EMPLOYEE_COMMUTING         // Cat 7
+  DOWNSTREAM_TRANSPORT       // Cat 9
 }
 
 model FuelEntry {
@@ -255,6 +278,55 @@ model ElectricityEntry {
   @@index([companyId, month])
   @@index([companyId, reportingYear])
   @@index([companyId, reportingYear, reportingMonth])
+  @@index([siteId])
+  @@index([recordStatus])
+  @@index([deletedAt])
+}
+
+/// Scope 3 (value-chain) emissions entry. Polymorphic by `category`:
+/// the shared core columns capture identity + period + total kgCO₂e,
+/// while `categoryData` (JSONB) holds per-category fields validated
+/// server-side by a Zod schema specific to that category. JSONB lets
+/// us add/evolve categories without a schema migration each time.
+model Scope3Entry {
+  id          String         @id @default(cuid())
+  companyId   String
+  siteId      String?
+  category    Scope3Category
+  description String         // human label, e.g. "Q1 supplier deliveries"
+
+  // Polymorphic per-category payload. See lib/schemas/scope3.schema.ts for
+  // the Zod-validated shape per category.
+  categoryData Json
+
+  // Period (Spec §11.7 + Amendment A7 — denormalised for fast YoY queries).
+  month          DateTime
+  reportingYear  Int
+  reportingMonth Int
+
+  // Computed values
+  emissionFactorId String?
+  factorSnapshot   Json? // frozen factor metadata at write time (ADR-008)
+  kgCo2e           Decimal? @db.Decimal(14, 3)
+
+  notes        String?
+  recordStatus RecordStatus @default(ACTIVE)
+
+  createdById String?
+  updatedById String?
+  deletedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  site           Site?           @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  emissionFactor EmissionFactor? @relation(fields: [emissionFactorId], references: [id], onDelete: SetNull)
+  createdBy      User?           @relation("Scope3EntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy      User?           @relation("Scope3EntryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([companyId, month])
+  @@index([companyId, reportingYear])
+  @@index([companyId, category])
   @@index([siteId])
   @@index([recordStatus])
   @@index([deletedAt])
