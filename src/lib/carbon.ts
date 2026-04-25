@@ -363,7 +363,7 @@ export async function getCarbonSummary(
     opts.year !== undefined ? { reportingYear: opts.year } : {};
   const siteFilter = opts.siteId ? { siteId: opts.siteId } : {};
 
-  const [fuelAgg, elecAgg, wasteRows] = await Promise.all([
+  const [fuelAgg, elecAgg, scope3Agg, wasteRows] = await Promise.all([
     prisma.fuelEntry.aggregate({
       where: { companyId, deletedAt: null, ...yearFilter, ...siteFilter },
       _sum: { kgCo2e: true },
@@ -374,11 +374,17 @@ export async function getCarbonSummary(
       _sum: { kgCo2e: true },
       _count: true,
     }),
+    prisma.scope3Entry.aggregate({
+      where: { companyId, deletedAt: null, ...yearFilter, ...siteFilter },
+      _sum: { kgCo2e: true },
+      _count: true,
+    }),
     computeWasteImpact(companyId, opts),
   ]);
 
   const scope1 = Number(fuelAgg._sum.kgCo2e ?? 0);
   const scope2 = Number(elecAgg._sum.kgCo2e ?? 0);
+  const scope3 = Number(scope3Agg._sum.kgCo2e ?? 0);
   const wasteCurrent = wasteRows.reduce(
     (sum, r) => sum + (r.currentKgCo2e ?? 0),
     0,
@@ -389,16 +395,23 @@ export async function getCarbonSummary(
     0,
   );
 
-  const total = scope1 + scope2 + wasteCurrent;
+  // wasteCurrent overlaps with Scope 3 "Waste generated in operations" once
+  // that category ships its dedicated form (Amendment A3 says we keep waste
+  // visible in two places but reference the same WasteFlow records). For
+  // now total is S1+S2+S3+waste — when WASTE_GENERATED entries start
+  // referencing WasteFlow rows we'll dedupe.
+  const total = scope1 + scope2 + scope3 + wasteCurrent;
 
   return {
     scope1,
     scope2,
+    scope3,
     wasteCurrent,
     wasteSavingPotential, // negative number (what could be avoided by switching to recycling)
     total,
     fuelEntryCount: fuelAgg._count,
     electricityEntryCount: elecAgg._count,
+    scope3EntryCount: scope3Agg._count,
     wasteFlowCount: wasteRows.length,
   };
 }

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import {
   ActivityIcon,
   FlameIcon,
+  NetworkIcon,
   PlusIcon,
   RecycleIcon,
   Scale3DIcon,
@@ -176,8 +177,7 @@ export default async function DashboardPage({
           />
         </div>
 
-        {/* Carbon KPIs — Spec §7.5. Scope 3 + PEF cards land once those
-            modules are real. */}
+        {/* Carbon KPIs — Spec §7.5. */}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <KpiCard
             label="Scope 1 emissions"
@@ -208,17 +208,17 @@ export default async function DashboardPage({
             accent="default"
           />
           <KpiCard
-            label="Waste-related CO₂e"
+            label="Scope 3 emissions"
             value={
               <>
-                {nf.format(carbon.wasteCurrent / 1000)}
+                {nf.format(carbon.scope3 / 1000)}
                 <span className="ml-1 text-base font-normal text-muted-foreground">
                   tCO₂e
                 </span>
               </>
             }
-            caption="current treatment pathway"
-            icon={<RecycleIcon />}
+            caption={`${carbon.scope3EntryCount} value-chain ${carbon.scope3EntryCount === 1 ? "entry" : "entries"}`}
+            icon={<NetworkIcon />}
             accent="default"
           />
           <KpiCard
@@ -231,7 +231,7 @@ export default async function DashboardPage({
                 </span>
               </>
             }
-            caption="Scope 1 + Scope 2 + waste impact"
+            caption="Scope 1 + Scope 2 + Scope 3 + waste impact"
             icon={<Scale3DIcon />}
             accent={carbon.total > 0 ? "success" : "default"}
           />
