@@ -110,6 +110,39 @@ describe("dispatchEmail — real send", () => {
     expect(vi.mocked(logger.error)).toHaveBeenCalled();
   });
 
+  it("sanitises tag values that contain Resend-disallowed characters", async () => {
+    sendMock.mockResolvedValue({ data: { id: "id" }, error: null });
+    await dispatchEmail({
+      to: "alice@example.com",
+      subject: "Hello",
+      html: "<p>hi</p>",
+      tags: [
+        { name: "type", value: "invitation" },
+        { name: "company", value: "RenAI Demo Co." },
+        { name: "bad name with spaces!", value: "ok" },
+      ],
+    });
+
+    const sentTags = sendMock.mock.calls[0][0].tags;
+    expect(sentTags).toEqual([
+      { name: "type", value: "invitation" },
+      { name: "company", value: "RenAI_Demo_Co" },
+      { name: "bad_name_with_spaces", value: "ok" },
+    ]);
+  });
+
+  it("drops the tags array entirely when every entry sanitises to empty", async () => {
+    sendMock.mockResolvedValue({ data: { id: "id" }, error: null });
+    await dispatchEmail({
+      to: "alice@example.com",
+      subject: "Hello",
+      html: "<p>hi</p>",
+      tags: [{ name: "!!!", value: "..." }],
+    });
+
+    expect(sendMock.mock.calls[0][0].tags).toBeUndefined();
+  });
+
   it("never throws when the SDK throws", async () => {
     sendMock.mockRejectedValue(new Error("network down"));
     const result = await dispatchEmail({

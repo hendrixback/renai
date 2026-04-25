@@ -51,13 +51,18 @@ describe("sendInvitationEmail", () => {
     expect(call.text).toContain("https://app.renai.pt/signup?token=abc");
   });
 
-  it("truncates long company names in the tag value", async () => {
-    const longName = "x".repeat(200);
-    await sendInvitationEmail({ ...baseInput, companyName: longName });
+  it("passes the company name through unchanged — sanitisation happens in dispatchEmail", async () => {
+    await sendInvitationEmail({
+      ...baseInput,
+      companyName: "RenAI Demo Co.",
+    });
     const call = dispatchEmailMock.mock.calls[0][0];
     const companyTag = call.tags.find(
       (t: { name: string }) => t.name === "company",
     );
-    expect(companyTag.value.length).toBeLessThanOrEqual(64);
+    // Tag value is the raw company string at this layer; dispatchEmail
+    // is responsible for transforming it to "RenAI_Demo_Co" before
+    // calling the Resend API. Asserted in client.test.ts.
+    expect(companyTag.value).toBe("RenAI Demo Co.");
   });
 });

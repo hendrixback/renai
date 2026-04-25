@@ -25,7 +25,9 @@ export async function sendInvitationEmail(
     text,
     tags: [
       { name: "type", value: "invitation" },
-      { name: "company", value: input.companyName.slice(0, 64) },
+      // Sanitised by dispatchEmail — pass the human-readable name
+      // straight through.
+      { name: "company", value: input.companyName },
     ],
   });
 }

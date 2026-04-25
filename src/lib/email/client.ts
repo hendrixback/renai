@@ -54,9 +54,38 @@ export type EmailMessage = {
   from?: string;
   /** Optional Reply-To header. */
   replyTo?: string;
-  /** Tags surfaced in the Resend dashboard for per-flow analytics. */
+  /** Tags surfaced in the Resend dashboard for per-flow analytics.
+   *  Names + values are sanitised before being sent to Resend (only
+   *  [A-Za-z0-9_-] is allowed by the API), so callers can pass any
+   *  human-readable string without escaping it themselves. */
   tags?: Array<{ name: string; value: string }>;
 };
+
+/**
+ * Resend rejects tag names/values that contain anything outside
+ * `[A-Za-z0-9_-]`. Replace disallowed chars with underscore, collapse
+ * runs of underscores, trim, cap at 256 chars, and drop the tag if
+ * the result is empty so we don't send a junk tag to the API.
+ */
+function sanitizeTagFragment(raw: string): string | null {
+  const cleaned = raw
+    .replace(/[^A-Za-z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 256);
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+function sanitizeTags(
+  tags: NonNullable<EmailMessage["tags"]>,
+): NonNullable<EmailMessage["tags"]> {
+  const out: NonNullable<EmailMessage["tags"]> = [];
+  for (const tag of tags) {
+    const name = sanitizeTagFragment(tag.name);
+    const value = sanitizeTagFragment(tag.value);
+    if (name && value) out.push({ name, value });
+  }
+  return out;
+}
 
 export type SendResult =
   | { ok: true; id: string | null }
@@ -82,6 +111,7 @@ export async function dispatchEmail(message: EmailMessage): Promise<SendResult> 
     return { ok: true, id: null };
   }
 
+  const safeTags = message.tags ? sanitizeTags(message.tags) : undefined;
   try {
     const result = await client.emails.send({
       from: message.from ?? fromAddress(),
@@ -90,7 +120,7 @@ export async function dispatchEmail(message: EmailMessage): Promise<SendResult> 
       html: message.html,
       text: message.text,
       replyTo: message.replyTo,
-      tags: message.tags,
+      tags: safeTags && safeTags.length > 0 ? safeTags : undefined,
     });
     if (result.error) {
       logger.error("Resend send failed", result.error, {
