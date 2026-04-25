@@ -112,7 +112,7 @@ export function UploadDocumentForm({
               error={state.fieldErrors.documentType?.[0]}
             >
               <Select name="documentType" defaultValue="OTHER">
-                <SelectTrigger id="documentType">
+                <SelectTrigger id="documentType" className="w-full">
                   <SelectValue>
                     {(raw) => {
                       const v = typeof raw === "string" ? raw : "";
@@ -136,7 +136,7 @@ export function UploadDocumentForm({
               error={state.fieldErrors.plantId?.[0]}
             >
               <Select name="plantId">
-                <SelectTrigger id="plantId">
+                <SelectTrigger id="plantId" className="w-full">
                   <SelectValue placeholder="Not specified">
                     {(raw) => {
                       const v = typeof raw === "string" ? raw : "";

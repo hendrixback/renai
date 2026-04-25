@@ -44,11 +44,17 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  // Default to non-native because the dominant call pattern in this app
+  // is `<Button render={<Link />}>` — Base UI's default of `nativeButton:
+  // true` would warn on every such call. Real <button> uses (no `render`)
+  // still render a <button> element regardless of this flag.
+  nativeButton = false,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
   return (
     <ButtonPrimitive
       data-slot="button"
+      nativeButton={nativeButton}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
