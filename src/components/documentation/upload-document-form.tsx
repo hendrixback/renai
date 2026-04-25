@@ -113,7 +113,12 @@ export function UploadDocumentForm({
             >
               <Select name="documentType" defaultValue="OTHER">
                 <SelectTrigger id="documentType">
-                  <SelectValue />
+                  <SelectValue>
+                    {(raw) => {
+                      const v = typeof raw === "string" ? raw : "";
+                      return DOCUMENT_TYPE_LABELS[v] ?? v;
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {DOCUMENT_TYPES.map((t) => (
@@ -132,7 +137,17 @@ export function UploadDocumentForm({
             >
               <Select name="plantId">
                 <SelectTrigger id="plantId">
-                  <SelectValue placeholder="Not specified" />
+                  <SelectValue placeholder="Not specified">
+                    {(raw) => {
+                      const v = typeof raw === "string" ? raw : "";
+                      if (!v) {
+                        return (
+                          <span className="text-muted-foreground">Not specified</span>
+                        );
+                      }
+                      return sites.find((s) => s.id === v)?.name ?? v;
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {sites.length === 0 ? (
