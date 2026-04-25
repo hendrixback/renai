@@ -6,10 +6,12 @@ import { z } from "zod";
 import { logActivity } from "@/lib/activity/log-activity";
 import { getCurrentContext } from "@/lib/auth";
 import { ForbiddenError, requireRole } from "@/lib/auth/require-role";
+import { sendInvitationEmail } from "@/lib/email";
 import {
   generateInvitationToken,
   invitationExpiry,
 } from "@/lib/invitations";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 export type TeamState = {
@@ -141,10 +143,30 @@ export async function inviteTeammate(
     ? `${origin.replace(/\/$/, "")}/signup?token=${token}`
     : `/signup?token=${token}`;
 
+  // Best-effort send. The invite-URL is also returned in the action
+  // result so the admin can copy/paste it manually if email delivery
+  // fails for any reason.
+  const sendResult = await sendInvitationEmail({
+    recipientEmail: invitation.email,
+    companyName: ctx.company.name,
+    inviterName: ctx.user.name,
+    role: invitation.role,
+    inviteUrl,
+    expiresAt: invitationExpiry(),
+  });
+  if (!sendResult.ok) {
+    logger.warn("Invitation created but email send failed", {
+      invitationId: invitation.id,
+      error: sendResult.error,
+    });
+  }
+
   revalidatePath("/settings/team");
   return {
     error: null,
-    success: `Invite created for ${parsed.data.email}.`,
+    success: sendResult.ok
+      ? `Invite emailed to ${parsed.data.email}.`
+      : `Invite created for ${parsed.data.email} (email delivery failed — share the link manually).`,
     inviteUrl,
     fieldErrors: {},
   };

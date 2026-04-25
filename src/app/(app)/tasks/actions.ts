@@ -6,12 +6,67 @@ import { z } from "zod";
 import { logActivity } from "@/lib/activity/log-activity";
 import { getCurrentContext } from "@/lib/auth";
 import { ForbiddenError, requireRole } from "@/lib/auth/require-role";
+import { sendTaskAssignedEmail } from "@/lib/email";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import {
   TASK_PRIORITY_VALUES,
   TASK_RELATED_MODULES,
   TASK_STATUS_VALUES,
+  type TaskPriorityValue,
 } from "@/lib/tasks";
+
+function appOrigin(): string {
+  return (
+    process.env.PUBLIC_APP_URL ??
+    process.env.RAILWAY_PUBLIC_DOMAIN_URL ??
+    "http://localhost:3000"
+  ).replace(/\/$/, "");
+}
+
+/**
+ * Fire-and-forget task-assigned email. Looks up the assignee's email,
+ * skips when the assignee is the same person who triggered the action
+ * (no point notifying yourself about your own assignment), and logs
+ * but never throws on delivery failure — the parent action has
+ * already committed.
+ */
+async function notifyTaskAssigned(args: {
+  taskId: string;
+  taskTitle: string;
+  taskDescription: string | null;
+  priority: TaskPriorityValue;
+  dueDate: Date | null;
+  assigneeId: string;
+  assignerUserId: string;
+  assignerName: string | null;
+  companyName: string;
+}): Promise<void> {
+  if (args.assigneeId === args.assignerUserId) return;
+  try {
+    const assignee = await prisma.user.findUnique({
+      where: { id: args.assigneeId },
+      select: { email: true, name: true },
+    });
+    if (!assignee) return;
+    await sendTaskAssignedEmail({
+      recipientEmail: assignee.email,
+      assigneeName: assignee.name,
+      assignerName: args.assignerName,
+      taskTitle: args.taskTitle,
+      taskDescription: args.taskDescription,
+      priority: args.priority,
+      dueDate: args.dueDate,
+      taskUrl: `${appOrigin()}/tasks?scope=mine`,
+      companyName: args.companyName,
+    });
+  } catch (err) {
+    logger.warn("Task-assigned email send threw", {
+      taskId: args.taskId,
+      err: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
 
 export type TaskActionState = {
   error: string | null;
@@ -151,6 +206,18 @@ export async function createTask(
     // User detail page (will surface tasks); created here even though
     // the page lands in Slice B so we don't have to re-touch this file.
     revalidatePath(`/team-overview/${task.assignedToId}`);
+
+    await notifyTaskAssigned({
+      taskId: task.id,
+      taskTitle: data.title,
+      taskDescription: data.description ?? null,
+      priority: data.priority,
+      dueDate: data.dueDate ?? null,
+      assigneeId: task.assignedToId,
+      assignerUserId: ctx.user.id,
+      assignerName: ctx.user.name,
+      companyName: ctx.company.name,
+    });
   }
 
   return { error: null, fieldErrors: {} };
@@ -275,6 +342,21 @@ export async function updateTask(
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${data.id}`);
   revalidatePath("/dashboard");
+
+  if (assigneeChanged && data.assignedToId) {
+    await notifyTaskAssigned({
+      taskId: data.id,
+      taskTitle: data.title,
+      taskDescription: data.description ?? null,
+      priority: data.priority,
+      dueDate: data.dueDate ?? null,
+      assigneeId: data.assignedToId,
+      assignerUserId: ctx.user.id,
+      assignerName: ctx.user.name,
+      companyName: ctx.company.name,
+    });
+  }
+
   return { error: null, fieldErrors: {} };
 }
 
