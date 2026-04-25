@@ -25,12 +25,28 @@ const DISPOSAL_CODES = new Set([
   "D1","D2","D3","D4","D5","D6","D7","D8","D9","D10","D11","D12","D13","D14","D15",
 ]);
 
+export type DashboardFilter = {
+  /** reportingYear filter — applies to flows + carbon entries. */
+  year?: number;
+  /** siteId filter. */
+  siteId?: string;
+};
+
 export type DashboardData = Awaited<ReturnType<typeof getDashboardData>>;
 
-export async function getDashboardData(companyId: string) {
+export async function getDashboardData(
+  companyId: string,
+  opts: DashboardFilter = {},
+) {
+  const where = {
+    companyId,
+    ...(opts.year !== undefined ? { reportingYear: opts.year } : {}),
+    ...(opts.siteId ? { siteId: opts.siteId } : {}),
+  };
+
   const [flows, categoryGroups, siteCount] = await Promise.all([
     prisma.wasteFlow.findMany({
-      where: { companyId },
+      where,
       select: {
         id: true,
         name: true,

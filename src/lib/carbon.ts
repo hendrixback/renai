@@ -153,11 +153,23 @@ function labelForDestination(
   return "—";
 }
 
+export type CarbonScopeFilter = {
+  /** Filter by reportingYear (Spec §10/11 — denormalised on every record). */
+  year?: number;
+  /** Filter by siteId. */
+  siteId?: string;
+};
+
 export async function computeWasteImpact(
   companyId: string,
+  opts: CarbonScopeFilter = {},
 ): Promise<WasteImpactRow[]> {
   const flows = await prisma.wasteFlow.findMany({
-    where: { companyId },
+    where: {
+      companyId,
+      ...(opts.year !== undefined ? { reportingYear: opts.year } : {}),
+      ...(opts.siteId ? { siteId: opts.siteId } : {}),
+    },
     orderBy: [{ isPriority: "desc" }, { createdAt: "desc" }],
     select: {
       id: true,
@@ -343,19 +355,26 @@ export async function computeElectricityEmission(opts: {
 
 // ─── Summary aggregation for the Overview tab ──────────────────────
 
-export async function getCarbonSummary(companyId: string) {
+export async function getCarbonSummary(
+  companyId: string,
+  opts: CarbonScopeFilter = {},
+) {
+  const yearFilter =
+    opts.year !== undefined ? { reportingYear: opts.year } : {};
+  const siteFilter = opts.siteId ? { siteId: opts.siteId } : {};
+
   const [fuelAgg, elecAgg, wasteRows] = await Promise.all([
     prisma.fuelEntry.aggregate({
-      where: { companyId },
+      where: { companyId, deletedAt: null, ...yearFilter, ...siteFilter },
       _sum: { kgCo2e: true },
       _count: true,
     }),
     prisma.electricityEntry.aggregate({
-      where: { companyId },
+      where: { companyId, deletedAt: null, ...yearFilter, ...siteFilter },
       _sum: { kgCo2e: true },
       _count: true,
     }),
-    computeWasteImpact(companyId),
+    computeWasteImpact(companyId, opts),
   ]);
 
   const scope1 = Number(fuelAgg._sum.kgCo2e ?? 0);

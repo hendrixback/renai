@@ -14,6 +14,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { getCarbonSummary } from "@/lib/carbon";
 import { getDashboardData } from "@/lib/dashboard";
 import { prisma } from "@/lib/prisma";
+import { DashboardFilters } from "@/components/dashboard/dashboard-filters";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,18 +35,36 @@ const nf = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 1,
 });
 
-export default async function DashboardPage() {
+type SearchParams = { year?: string; site?: string };
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
   const ctx = await getCurrentContext();
   if (!ctx) redirect("/login?from=/dashboard");
 
-  const [data, carbon, activitiesRaw] = await Promise.all([
-    getDashboardData(ctx.company.id),
-    getCarbonSummary(ctx.company.id),
+  const sp = await searchParams;
+  const year = sp.year ? Number.parseInt(sp.year, 10) : undefined;
+  const filter = {
+    year: Number.isFinite(year) ? year : undefined,
+    siteId: sp.site || undefined,
+  };
+
+  const [data, carbon, activitiesRaw, sites] = await Promise.all([
+    getDashboardData(ctx.company.id, filter),
+    getCarbonSummary(ctx.company.id, filter),
     prisma.activityLog.findMany({
       where: { companyId: ctx.company.id },
       orderBy: { createdAt: "desc" },
       take: 8,
       include: { user: { select: { name: true, email: true } } },
+    }),
+    prisma.site.findMany({
+      where: { companyId: ctx.company.id, deletedAt: null },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
     }),
   ]);
 
@@ -99,6 +118,8 @@ export default async function DashboardPage() {
             Live
           </Badge>
         </div>
+
+        <DashboardFilters sites={sites} />
 
         {/* KPI row */}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
