@@ -98,6 +98,34 @@ export const EMPLOYEE_COMMUTING_MODES = [
 export const employeeCommutingModeSchema = z.enum(EMPLOYEE_COMMUTING_MODES);
 export type EmployeeCommutingMode = z.infer<typeof employeeCommutingModeSchema>;
 
+export const FREIGHT_MODES = [
+  "truck_avg",
+  "truck_articulated",
+  "van_light",
+  "rail_freight",
+  "ship_container",
+  "air_freight_long_haul",
+  "inland_waterway",
+] as const;
+export const freightModeSchema = z.enum(FREIGHT_MODES);
+export type FreightMode = z.infer<typeof freightModeSchema>;
+
+/**
+ * Freight payload — used by both UPSTREAM_TRANSPORT (Cat 4) and
+ * DOWNSTREAM_TRANSPORT (Cat 9). Activity = tonnes × distanceKm × factor;
+ * direction (up/down) is captured by the parent Scope3Entry.category
+ * field, since the underlying physics + factors are direction-agnostic.
+ */
+export const freightDataSchema = z.object({
+  mode: freightModeSchema,
+  tonnes: z.number().positive(),
+  distanceKm: z.number().positive(),
+  region: z.string().min(2).max(8).default("GLOBAL"),
+  origin: z.string().trim().max(120).optional(),
+  destination: z.string().trim().max(120).optional(),
+});
+export type FreightData = z.infer<typeof freightDataSchema>;
+
 /**
  * EMPLOYEE_COMMUTING payload (GHG Protocol Cat 7).
  * Activity-based: distance per day × days per year × employees → annual
@@ -139,6 +167,11 @@ export const registerScope3Schema = z
       parsed = businessTravelDataSchema.safeParse(value.data);
     } else if (value.category === "EMPLOYEE_COMMUTING") {
       parsed = employeeCommutingDataSchema.safeParse(value.data);
+    } else if (
+      value.category === "UPSTREAM_TRANSPORT" ||
+      value.category === "DOWNSTREAM_TRANSPORT"
+    ) {
+      parsed = freightDataSchema.safeParse(value.data);
     } else {
       parsed = genericScope3DataSchema.safeParse(value.data);
     }

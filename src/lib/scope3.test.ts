@@ -10,6 +10,7 @@ vi.mock("@/lib/prisma", () => ({
 import {
   computeBusinessTravelEmission,
   computeEmployeeCommutingEmission,
+  computeFreightEmission,
 } from "./scope3";
 
 const baseFactor = {
@@ -164,6 +165,43 @@ describe("computeEmployeeCommutingEmission", () => {
       distancePerDayKm: 10,
       daysPerYear: 220,
       employees: 1,
+      region: "MARS",
+    });
+    expect(result).toEqual({
+      factorId: null,
+      kgCo2e: null,
+      factorSnapshot: null,
+    });
+  });
+});
+
+describe("computeFreightEmission", () => {
+  it("multiplies factor × tonnes × distance (t.km)", async () => {
+    findFirst.mockResolvedValueOnce({
+      ...baseFactor,
+      category: "TRANSPORT",
+      subtype: "truck_avg",
+      unit: "tkm",
+      kgCo2ePerUnit: 0.10560,
+    });
+    const result = await computeFreightEmission("co1", {
+      mode: "truck_avg",
+      tonnes: 5,
+      distanceKm: 200,
+      region: "GLOBAL",
+    });
+    // 0.10560 × 5 × 200 = 105.6
+    expect(result.kgCo2e).toBeCloseTo(105.6, 2);
+    expect(result.factorId).toBe("factor-1");
+    expect(result.factorSnapshot).toMatchObject({ type: "truck_avg" });
+  });
+
+  it("returns nulls when no factor exists for the freight mode", async () => {
+    findFirst.mockResolvedValue(null);
+    const result = await computeFreightEmission("co1", {
+      mode: "air_freight_long_haul",
+      tonnes: 1,
+      distanceKm: 5000,
       region: "MARS",
     });
     expect(result).toEqual({

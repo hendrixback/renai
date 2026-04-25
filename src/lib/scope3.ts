@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import type {
   BusinessTravelData,
   EmployeeCommutingData,
+  FreightData,
   Scope3CategoryValue,
 } from "@/lib/schemas/scope3.schema";
 
@@ -25,7 +26,11 @@ const ZERO: Scope3Computation = {
   factorSnapshot: null,
 };
 
-type FactorCategory = "BUSINESS_TRAVEL" | "EMPLOYEE_COMMUTING" | "PURCHASED_GOODS";
+type FactorCategory =
+  | "BUSINESS_TRAVEL"
+  | "EMPLOYEE_COMMUTING"
+  | "PURCHASED_GOODS"
+  | "TRANSPORT";
 
 async function findFactor(opts: {
   category: FactorCategory;
@@ -153,11 +158,36 @@ export async function computeEmployeeCommutingEmission(
   };
 }
 
+export async function computeFreightEmission(
+  companyId: string,
+  data: FreightData,
+): Promise<Scope3Computation> {
+  // Factors live under EmissionCategory=TRANSPORT (the existing enum
+  // value). Same physics for upstream + downstream — the parent
+  // Scope3Category captures direction.
+  const factor = await findFactor({
+    category: "TRANSPORT",
+    subtype: data.mode,
+    region: data.region,
+    companyId,
+  });
+  if (!factor) return ZERO;
+
+  // Activity is t.km. DEFRA quotes their freight factors per ton.km.
+  const kgCo2e = Number(factor.kgCo2ePerUnit) * data.tonnes * data.distanceKm;
+
+  return {
+    factorId: factor.id,
+    kgCo2e,
+    factorSnapshot: snapshot(factor),
+  };
+}
+
 /**
- * Dispatch on category — BUSINESS_TRAVEL and EMPLOYEE_COMMUTING run the
- * full calc; the other 5 categories accept a kgCo2eOverride from the
- * generic form. When neither is available the entry is persisted with
- * NULL emissions.
+ * Dispatch on category — BUSINESS_TRAVEL, EMPLOYEE_COMMUTING, and the
+ * two freight categories run the full calc; the remaining 3 accept a
+ * kgCo2eOverride via the generic form. When neither is available the
+ * entry is persisted with NULL emissions.
  */
 export async function computeScope3Emission(opts: {
   companyId: string;
@@ -175,6 +205,12 @@ export async function computeScope3Emission(opts: {
       opts.companyId,
       opts.data as EmployeeCommutingData,
     );
+  }
+  if (
+    opts.category === "UPSTREAM_TRANSPORT" ||
+    opts.category === "DOWNSTREAM_TRANSPORT"
+  ) {
+    return computeFreightEmission(opts.companyId, opts.data as FreightData);
   }
 
   const generic = opts.data as { kgCo2eOverride?: number } | null;

@@ -14,7 +14,8 @@ export type EmissionFactorSeed = {
     // Scope 3 — added with migration 0007.
     | "BUSINESS_TRAVEL"
     | "EMPLOYEE_COMMUTING"
-    | "PURCHASED_GOODS";
+    | "PURCHASED_GOODS"
+    | "TRANSPORT";
   subtype: string;
   unit: string;
   kgCo2ePerUnit: number;
@@ -132,4 +133,16 @@ export const emissionFactors: EmissionFactorSeed[] = [
   { category: "EMPLOYEE_COMMUTING", subtype: "rail_national",  unit: "pkm", kgCo2ePerUnit: 0.03694, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
   { category: "EMPLOYEE_COMMUTING", subtype: "metro_subway",   unit: "pkm", kgCo2ePerUnit: 0.02780, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Light rail / metro / subway." },
   { category: "EMPLOYEE_COMMUTING", subtype: "scooter",        unit: "km",  kgCo2ePerUnit: 0.05823, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Petrol-powered motor scooter." },
+
+  // ─── Scope 3 — Freight (Cat 4 + Cat 9) ───────────────────────
+  // DEFRA 2024 freight conversion factors. Used by both UPSTREAM_TRANSPORT
+  // and DOWNSTREAM_TRANSPORT — physics is direction-agnostic. Unit is t.km
+  // (tonne-kilometre); the calc multiplies tonnes × distanceKm × factor.
+  { category: "TRANSPORT", subtype: "truck_avg",            unit: "tkm", kgCo2ePerUnit: 0.10560, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "All HGVs, average load." },
+  { category: "TRANSPORT", subtype: "truck_articulated",    unit: "tkm", kgCo2ePerUnit: 0.07900, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: ">17t articulated, average load." },
+  { category: "TRANSPORT", subtype: "van_light",            unit: "tkm", kgCo2ePerUnit: 0.55000, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Class I/II light van; high per-tkm intensity." },
+  { category: "TRANSPORT", subtype: "rail_freight",         unit: "tkm", kgCo2ePerUnit: 0.02200, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
+  { category: "TRANSPORT", subtype: "ship_container",       unit: "tkm", kgCo2ePerUnit: 0.01300, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "Container ship, average size." },
+  { category: "TRANSPORT", subtype: "air_freight_long_haul",unit: "tkm", kgCo2ePerUnit: 0.60000, source: "DEFRA 2024", region: "GLOBAL", year: 2024, notes: "International air freight, long haul." },
+  { category: "TRANSPORT", subtype: "inland_waterway",      unit: "tkm", kgCo2ePerUnit: 0.03000, source: "DEFRA 2024", region: "GLOBAL", year: 2024 },
 ];

@@ -12,8 +12,10 @@ import {
 import {
   BUSINESS_TRAVEL_MODES,
   EMPLOYEE_COMMUTING_MODES,
+  FREIGHT_MODES,
   type BusinessTravelMode,
   type EmployeeCommutingMode,
+  type FreightMode,
   type Scope3CategoryValue,
 } from "@/lib/schemas/scope3.schema";
 import { REGIONS } from "@/lib/carbon-options";
@@ -53,6 +55,16 @@ const COMMUTING_MODE_LABELS: Record<EmployeeCommutingMode, string> = {
   scooter: "Motor scooter",
 };
 
+const FREIGHT_MODE_LABELS: Record<FreightMode, string> = {
+  truck_avg: "Truck (HGV, average)",
+  truck_articulated: "Truck (articulated, >17t)",
+  van_light: "Light van",
+  rail_freight: "Rail freight",
+  ship_container: "Sea — container ship",
+  air_freight_long_haul: "Air freight (long-haul)",
+  inland_waterway: "Inland waterway / barge",
+};
+
 export type Scope3EntryInitial = {
   id: string;
   category: Scope3CategoryValue;
@@ -73,6 +85,12 @@ export type Scope3EntryInitial = {
   distancePerDayKm: string;
   daysPerYear: string;
   employees: string;
+  // FREIGHT fields (UPSTREAM_TRANSPORT or DOWNSTREAM_TRANSPORT).
+  freightMode: FreightMode | null;
+  tonnes: string;
+  freightDistanceKm: string;
+  freightOrigin: string;
+  freightDestination: string;
   // Generic fallback
   amount: string;
   amountUnit: string;
@@ -119,12 +137,27 @@ export function EditScope3EntryForm({
   const [daysPerYear, setDaysPerYear] = React.useState(entry.daysPerYear || "220");
   const [employees, setEmployees] = React.useState(entry.employees || "1");
 
+  const [freightMode, setFreightMode] = React.useState<FreightMode>(
+    entry.freightMode ?? "truck_avg",
+  );
+  const [tonnes, setTonnes] = React.useState(entry.tonnes);
+  const [freightDistanceKm, setFreightDistanceKm] = React.useState(
+    entry.freightDistanceKm,
+  );
+  const [freightOrigin, setFreightOrigin] = React.useState(entry.freightOrigin);
+  const [freightDestination, setFreightDestination] = React.useState(
+    entry.freightDestination,
+  );
+
   const [amount, setAmount] = React.useState(entry.amount);
   const [amountUnit, setAmountUnit] = React.useState(entry.amountUnit);
   const [kgCo2eOverride, setKgCo2eOverride] = React.useState(entry.kgCo2eOverride);
 
   const isTravel = entry.category === "BUSINESS_TRAVEL";
   const isCommuting = entry.category === "EMPLOYEE_COMMUTING";
+  const isFreight =
+    entry.category === "UPSTREAM_TRANSPORT" ||
+    entry.category === "DOWNSTREAM_TRANSPORT";
   const isHotel = isTravel && travelMode === "hotel_night";
 
   function buildPayload(): Record<string, unknown> {
@@ -157,6 +190,23 @@ export function EditScope3EntryForm({
         employees: Number(employees || "1"),
         region,
       };
+      return {
+        description,
+        month,
+        siteId: siteId || undefined,
+        notes: notes || undefined,
+        data,
+      };
+    }
+    if (isFreight) {
+      const data: Record<string, unknown> = {
+        mode: freightMode,
+        tonnes: Number(tonnes || "0"),
+        distanceKm: Number(freightDistanceKm || "0"),
+        region,
+      };
+      if (freightOrigin) data.origin = freightOrigin;
+      if (freightDestination) data.destination = freightDestination;
       return {
         description,
         month,
@@ -237,7 +287,87 @@ export function EditScope3EntryForm({
             </Field>
           </div>
 
-          {isCommuting ? (
+          {isFreight ? (
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Freight details
+              </p>
+              <Field>
+                <FieldLabel htmlFor="freightMode">Mode</FieldLabel>
+                <select
+                  id="freightMode"
+                  value={freightMode}
+                  onChange={(e) => setFreightMode(e.target.value as FreightMode)}
+                  className={selectClass}
+                >
+                  {FREIGHT_MODES.map((m) => (
+                    <option key={m} value={m}>
+                      {FREIGHT_MODE_LABELS[m]}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                <Field>
+                  <FieldLabel htmlFor="tonnes">Tonnes</FieldLabel>
+                  <Input
+                    id="tonnes"
+                    type="number"
+                    step="0.001"
+                    min={0}
+                    value={tonnes}
+                    onChange={(e) => setTonnes(e.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="freightDistanceKm">Distance (km)</FieldLabel>
+                  <Input
+                    id="freightDistanceKm"
+                    type="number"
+                    step="0.1"
+                    min={0}
+                    value={freightDistanceKm}
+                    onChange={(e) => setFreightDistanceKm(e.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="region">Region</FieldLabel>
+                  <select
+                    id="region"
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                    className={selectClass}
+                  >
+                    {REGIONS.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="freightOrigin">Origin (optional)</FieldLabel>
+                  <Input
+                    id="freightOrigin"
+                    value={freightOrigin}
+                    onChange={(e) => setFreightOrigin(e.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="freightDestination">
+                    Destination (optional)
+                  </FieldLabel>
+                  <Input
+                    id="freightDestination"
+                    value={freightDestination}
+                    onChange={(e) => setFreightDestination(e.target.value)}
+                  />
+                </Field>
+              </div>
+            </div>
+          ) : isCommuting ? (
             <div className="rounded-lg border bg-muted/20 p-3">
               <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Commuting details

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import type {
   BusinessTravelMode,
   EmployeeCommutingMode,
+  FreightMode,
   Scope3CategoryValue,
 } from "@/lib/schemas/scope3.schema";
 import { PageHeader } from "@/components/page-header";
@@ -58,11 +59,17 @@ export default async function EditScope3Page({
   const data = (entry.categoryData ?? {}) as Record<string, unknown>;
   const isTravel = entry.category === "BUSINESS_TRAVEL";
   const isCommuting = entry.category === "EMPLOYEE_COMMUTING";
+  const isFreight =
+    entry.category === "UPSTREAM_TRANSPORT" ||
+    entry.category === "DOWNSTREAM_TRANSPORT";
   const travelMode = isTravel
     ? (asString(data.mode) as BusinessTravelMode)
     : null;
   const commutingMode = isCommuting
     ? (asString(data.mode) as EmployeeCommutingMode)
+    : null;
+  const freightMode = isFreight
+    ? (asString(data.mode) as FreightMode)
     : null;
 
   const initial: Scope3EntryInitial = {
@@ -83,6 +90,11 @@ export default async function EditScope3Page({
     distancePerDayKm: asNumberString(data.distancePerDayKm),
     daysPerYear: asNumberString(data.daysPerYear) || "220",
     employees: asNumberString(data.employees) || "1",
+    freightMode: freightMode || null,
+    tonnes: asNumberString(data.tonnes),
+    freightDistanceKm: isFreight ? asNumberString(data.distanceKm) : "",
+    freightOrigin: isFreight ? asString(data.origin) : "",
+    freightDestination: isFreight ? asString(data.destination) : "",
     amount: asNumberString(data.amount),
     amountUnit: asString(data.unit),
     kgCo2eOverride: asNumberString(data.kgCo2eOverride),
