@@ -14,7 +14,6 @@ import {
 import { getCurrentContext } from "@/lib/auth";
 import { getCarbonSummary } from "@/lib/carbon";
 import { getDashboardData } from "@/lib/dashboard";
-import { flags } from "@/lib/flags";
 import { prisma } from "@/lib/prisma";
 import { computePef } from "@/lib/production";
 import { getTaskSummary, listTasks } from "@/lib/tasks";
@@ -57,30 +56,26 @@ export default async function DashboardPage({
     siteId: sp.site || undefined,
   };
 
-  // PEF — only fetched when the flag is on; falls back to null for the
-  // KPI's "—" state otherwise. Gives the dashboard a reading even if the
-  // user hasn't visited /carbon-footprint/production yet.
+  // PEF — fetched live from the carbon totals + ProductionVolume rows.
+  // Returns null/empty when the user hasn't recorded production volume,
+  // which the KPI renders as "—".
   const pefYear = filter.year ?? new Date().getUTCFullYear();
-  const pefPromise = flags.productionIntensityEnabled
-    ? computePef({
-        companyId: ctx.company.id,
-        year: pefYear,
-        scopes: { s1: true, s2: true, s3: true },
-        siteId: filter.siteId,
-      })
-    : Promise.resolve(null);
+  const pefPromise = computePef({
+    companyId: ctx.company.id,
+    year: pefYear,
+    scopes: { s1: true, s2: true, s3: true },
+    siteId: filter.siteId,
+  });
 
-  const tasksPromise = flags.tasksEnabled
-    ? Promise.all([
-        listTasks({
-          companyId: ctx.company.id,
-          currentUserId: ctx.user.id,
-          filters: { myTasks: true, overdueOnly: false },
-          take: 5,
-        }),
-        getTaskSummary({ companyId: ctx.company.id }),
-      ])
-    : Promise.resolve(null);
+  const tasksPromise = Promise.all([
+    listTasks({
+      companyId: ctx.company.id,
+      currentUserId: ctx.user.id,
+      filters: { myTasks: true, overdueOnly: false },
+      take: 5,
+    }),
+    getTaskSummary({ companyId: ctx.company.id }),
+  ]);
 
   const [data, carbon, activitiesRaw, sites, pef, tasksBundle] = await Promise.all([
     getDashboardData(ctx.company.id, filter),
@@ -100,12 +95,10 @@ export default async function DashboardPage({
     tasksPromise,
   ]);
 
-  const myActiveTasks = tasksBundle
-    ? tasksBundle[0].filter(
-        (t) => t.status === "OPEN" || t.status === "IN_PROGRESS",
-      )
-    : [];
-  const teamTaskSummary = tasksBundle ? tasksBundle[1] : null;
+  const myActiveTasks = tasksBundle[0].filter(
+    (t) => t.status === "OPEN" || t.status === "IN_PROGRESS",
+  );
+  const teamTaskSummary = tasksBundle[1];
 
   const { kpi, byCategory, byTreatment, recentFlows, alerts, meta } = data;
   const activities: TeamActionEntry[] = activitiesRaw.map((a) => ({
@@ -362,13 +355,11 @@ export default async function DashboardPage({
         <InsightsAlerts alerts={alerts} />
 
         {/* Open tasks widget — only when the Tasks module is on. */}
-        {flags.tasksEnabled && teamTaskSummary ? (
-          <OpenTasksWidget
-            myTasks={myActiveTasks}
-            teamOpen={teamTaskSummary.open + teamTaskSummary.inProgress}
-            teamOverdue={teamTaskSummary.overdue}
-          />
-        ) : null}
+        <OpenTasksWidget
+          myTasks={myActiveTasks}
+          teamOpen={teamTaskSummary.open + teamTaskSummary.inProgress}
+          teamOverdue={teamTaskSummary.overdue}
+        />
 
         {/* Latest team actions (Spec §7.7) */}
         <LatestTeamActions activities={activities} />

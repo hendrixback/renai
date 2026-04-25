@@ -2,7 +2,6 @@ import Link from "next/link"
 import * as React from "react"
 
 import { getCurrentContext } from "@/lib/auth"
-import { flags } from "@/lib/flags"
 import { getTaskSummary } from "@/lib/tasks"
 import { HeaderNotifications } from "@/components/header-notifications"
 import { HeaderUserMenu } from "@/components/header-user-menu"
@@ -38,20 +37,18 @@ export async function PageHeader({
 
   // Pull the bell-icon counts here rather than in HeaderNotifications
   // itself, so the bell stays a thin client component (no DB/auth code
-  // pulled into the bundle). When tasks are off we skip the query.
-  const taskSummary =
-    ctx && flags.tasksEnabled
-      ? await getTaskSummary({
-          companyId: ctx.company.id,
-          assignedToId: ctx.user.id,
-        })
-      : null;
+  // pulled into the bundle).
+  const taskSummary = ctx
+    ? await getTaskSummary({
+        companyId: ctx.company.id,
+        assignedToId: ctx.user.id,
+      })
+    : null;
   const notifications = {
     myOpen: taskSummary
       ? taskSummary.open + taskSummary.inProgress
       : 0,
     myOverdue: taskSummary?.overdue ?? 0,
-    tasksEnabled: flags.tasksEnabled,
   }
 
   return (

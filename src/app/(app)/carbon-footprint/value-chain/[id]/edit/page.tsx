@@ -1,7 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 
 import { getCurrentContext } from "@/lib/auth";
-import { flags } from "@/lib/flags";
 import { prisma } from "@/lib/prisma";
 import type {
   BusinessTravelMode,
@@ -39,8 +38,6 @@ export default async function EditScope3Page({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!flags.scope3Enabled) notFound();
-
   const ctx = await getCurrentContext();
   if (!ctx) redirect("/login?from=/carbon-footprint/value-chain");
 

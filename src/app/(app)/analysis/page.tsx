@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import {
   ActivityIcon,
   FlameIcon,
@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 
 import { getCurrentContext } from "@/lib/auth";
-import { flags } from "@/lib/flags";
 import { prisma } from "@/lib/prisma";
 import { getAnalysisData } from "@/lib/analysis";
 import {
@@ -89,8 +88,6 @@ export default async function AnalysisPage({
 }: {
   searchParams: Promise<AnalysisSearchParams>;
 }) {
-  if (!flags.analysisEnabled) notFound();
-
   const ctx = await getCurrentContext();
   if (!ctx) redirect("/login?from=/analysis");
 

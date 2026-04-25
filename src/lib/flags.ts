@@ -1,33 +1,25 @@
 /**
  * Feature flags (ADR-010).
  *
- * Env-based, per-deployment. No external service — simple and free, with
- * the upgrade path to per-tenant overrides (new `FeatureOverride` table)
- * when that becomes necessary.
+ * One purpose only: gate **work-in-progress** modules so we can merge
+ * code to main without exposing them to users. Once a feature ships
+ * and the flag is flipped on in prod, **delete the flag** (and any
+ * `if (flags.X)` guards) — don't leave dead conditionals around code
+ * that always runs.
  *
- * Intentionally NOT server-only: all values are `NEXT_PUBLIC_FLAG_*` env
- * vars that Next.js inlines at build time, so the same import works in
- * client components (sidebar navigation gating) and server components
- * (route-level notFound()) alike.
+ * For per-tenant rollout, A/B tests, or runtime kill-switches without
+ * a redeploy, env-var flags are the wrong tool. The upgrade path is a
+ * `FeatureOverride` table layered on top of the env defaults — add it
+ * when the need is real.
+ *
+ * Naming convention: `{feature}Enabled`, boolean. Read from
+ * `NEXT_PUBLIC_FLAG_{FEATURE}`. NEXT_PUBLIC_ prefix is deliberate so
+ * the same import works in client components (sidebar gating) and
+ * server components (route-level notFound()) without divergence.
  *
  * Usage:
  *   import { flags } from "@/lib/flags";
- *   if (!flags.scope3Enabled) notFound();
- *
- * Naming convention: `{feature}Enabled`, boolean. Read from
- * `NEXT_PUBLIC_FLAG_{FEATURE}` env var. NEXT_PUBLIC_ prefix is
- * deliberate — the same flag check runs on both client and server, so
- * avoiding a prefix mismatch is safer than forcing server-only checks.
- *
- * To stub a page behind a flag in a route:
- *
- *   import { flags } from "@/lib/flags";
- *   import { notFound } from "next/navigation";
- *
- *   export default function MyFlaggedPage() {
- *     if (!flags.scope3Enabled) notFound();
- *     ...
- *   }
+ *   if (!flags.regulationsEnabled) notFound();
  */
 
 function read(envKey: string): boolean {
@@ -36,24 +28,8 @@ function read(envKey: string): boolean {
 }
 
 export const flags = Object.freeze({
-  /** Spec §12 — Scope 3 value-chain emissions. */
-  scope3Enabled: read("NEXT_PUBLIC_FLAG_SCOPE3"),
-  /** Spec §13 / Amendment A2 — Production intensity (PEF as a derived view). */
-  productionIntensityEnabled: read("NEXT_PUBLIC_FLAG_PRODUCTION_INTENSITY"),
-  /** Spec §14 — Analysis module (separate from Dashboard). */
-  analysisEnabled: read("NEXT_PUBLIC_FLAG_ANALYSIS"),
-  /** Spec §15 — Documentation module. Enabled by default, flag exists for emergency kill-switch. */
-  documentationEnabled: !read("NEXT_PUBLIC_FLAG_DOCUMENTATION_DISABLED"),
-  /** Spec §16 — Regulations. */
+  /** Spec §16 — Regulations module (curated regulatory information hub). */
   regulationsEnabled: read("NEXT_PUBLIC_FLAG_REGULATIONS"),
-  /** Spec §17 — Team Overview as a top-level module. */
-  teamOverviewEnabled: read("NEXT_PUBLIC_FLAG_TEAM_OVERVIEW"),
-  /** Spec §18 — Tasks + Activity Tracking. */
-  tasksEnabled: read("NEXT_PUBLIC_FLAG_TASKS"),
-  /** Spec §19 — AI assistant / insights. */
-  aiAssistantEnabled: read("NEXT_PUBLIC_FLAG_AI_ASSISTANT"),
-  /** Spec §20 — CSV/Excel import. */
-  importExportEnabled: read("NEXT_PUBLIC_FLAG_IMPORT_EXPORT"),
 });
 
 export type FeatureFlagKey = keyof typeof flags;

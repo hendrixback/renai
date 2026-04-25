@@ -304,34 +304,38 @@ export async function createWasteFlow(data: CreateWasteFlowInput) {
 
 ---
 
-## ADR-010: Env-based feature flags (no external service)
+## ADR-010: Env-based feature flags for WIP modules only
 
-**Status**: Accepted · 2026-04-23
+**Status**: Accepted · 2026-04-23, refined 2026-04-25
 
-**Context**: We want to merge incomplete Scope 3 or Analysis work to main without exposing to users. Real feature-flag services (LaunchDarkly, Flagsmith) cost money and add infra complexity.
+**Context**: We want to merge incomplete modules to main without exposing them to users, but commercial feature-flag services (LaunchDarkly, Flagsmith) cost money and add infra. We also don't want flags to outlive their purpose — every long-lived `if (flag)` is a fork in the codebase that has to be reasoned about forever.
 
-**Decision**: Simple env-based flags in `lib/flags.ts`. Pattern:
+**Decision**: Simple env-based flags in `lib/flags.ts`, used **only to gate work-in-progress modules**. Once a feature ships and the flag flips on in prod, the flag (and any `if (flag)` checks) is **deleted in the same change** that confirms the feature is stable. The codebase should never contain a flag whose feature already runs in prod.
+
+Pattern:
 ```typescript
-export const flags = {
-  scope3Enabled: process.env.NEXT_PUBLIC_FLAG_SCOPE3 === "true",
+export const flags = Object.freeze({
   regulationsEnabled: process.env.NEXT_PUBLIC_FLAG_REGULATIONS === "true",
-  aiAssistantEnabled: process.env.NEXT_PUBLIC_FLAG_AI_ASSISTANT === "true",
-} as const;
+});
 ```
 
-Used in layouts and route-level guards. Server-side flags (non-NEXT_PUBLIC_) for backend-only kill switches.
+Naming: `{feature}Enabled`, boolean. Read from `NEXT_PUBLIC_FLAG_{FEATURE}`. The `NEXT_PUBLIC_` prefix is mandatory so the flag value is consistent on server (Node runtime) and client (build-time inlined) — divergence between the two is a hydration mismatch waiting to happen.
+
+Server-rendered layouts pass flag values down to client components as props rather than letting the client component import `flags` directly — that pattern caused real hydration mismatches with Turbopack in dev.
 
 **Consequences**:
 - **+** Zero cost, zero dependency.
 - **+** Per-environment control (dev/staging/prod).
 - **−** No per-user / per-company rollout (ship to all or none).
 - **−** Redeploy required to toggle; acceptable for MVP.
+- **+** Flags don't accumulate — once shipped, they go.
 
 **Alternatives considered**:
 - **Vercel Edge Config / PostHog flags**: wait until we need per-user rollout.
 - **LaunchDarkly**: $$$.
+- **DB-based flags**: deferred until per-tenant rollout or runtime kill-switches without redeploy are actually needed.
 
-**Upgrade path**: when we need per-tenant rollout, add a `FeatureOverride` table (companyId + flag + enabled) checked alongside env.
+**Upgrade path**: when we need per-tenant rollout, add a `FeatureOverride` table (companyId + flag + enabled) checked alongside env. Until then, env flags are sufficient.
 
 ---
 

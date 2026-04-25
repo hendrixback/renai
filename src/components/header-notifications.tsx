@@ -19,24 +19,18 @@ export type HeaderNotificationsData = {
   myOpen: number;
   /** Tasks in `myOpen` whose dueDate has passed. */
   myOverdue: number;
-  /** Whether the Tasks module is enabled — toggles the bell from the
-   *  placeholder copy to live counts. */
-  tasksEnabled: boolean;
 };
 
 const FALLBACK_DATA: HeaderNotificationsData = {
   myOpen: 0,
   myOverdue: 0,
-  tasksEnabled: false,
 };
 
 /**
- * Header notifications bell. When Tasks is enabled, surfaces the
- * current user's open + overdue assignment counts and links to the
- * task list. When the module is off — or in any case where the data
- * prop is missing (e.g. a stale dev-server bundle calling the old
- * no-prop signature) — falls back to placeholder copy so the chrome
- * stays consistent across deployments.
+ * Header notifications bell. Surfaces the current user's open +
+ * overdue task counts and links to /tasks. The data is fetched in
+ * PageHeader (the server component parent) so this component stays
+ * a thin client wrapper around the dropdown UI.
  */
 export function HeaderNotifications({
   data = FALLBACK_DATA,
@@ -44,8 +38,8 @@ export function HeaderNotifications({
   data?: HeaderNotificationsData;
 }) {
   const total = data.myOpen;
-  const showBadge = data.tasksEnabled && total > 0;
-  const isOverdue = data.tasksEnabled && data.myOverdue > 0;
+  const showBadge = total > 0;
+  const isOverdue = data.myOverdue > 0;
 
   return (
     <DropdownMenu>
@@ -54,11 +48,7 @@ export function HeaderNotifications({
           <Button
             variant="ghost"
             size="icon"
-            aria-label={
-              data.tasksEnabled
-                ? `Notifications — ${total} open task${total === 1 ? "" : "s"}`
-                : "Notifications"
-            }
+            aria-label={`Notifications — ${total} open task${total === 1 ? "" : "s"}`}
             className="relative"
           />
         }
@@ -80,18 +70,7 @@ export function HeaderNotifications({
       <DropdownMenuContent align="end" sideOffset={6} className="min-w-72">
         <DropdownMenuLabel>Notifications</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {!data.tasksEnabled ? (
-          <div className="px-3 py-6 text-center">
-            <BellIcon className="text-muted-foreground/40 mx-auto size-6" />
-            <p className="text-muted-foreground mt-2 text-xs">
-              You&apos;re all caught up.
-            </p>
-            <p className="text-muted-foreground/70 mt-1 text-[10px]">
-              Task notifications will appear here once the Tasks module is
-              enabled.
-            </p>
-          </div>
-        ) : total === 0 ? (
+        {total === 0 ? (
           <div className="px-3 py-6 text-center">
             <BellIcon className="text-muted-foreground/40 mx-auto size-6" />
             <p className="text-muted-foreground mt-2 text-xs">

@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 
 import { getCurrentContext } from "@/lib/auth";
-import { flags } from "@/lib/flags";
 import {
   getTaskSummary,
   listAssignableMembers,
@@ -28,8 +27,6 @@ export default async function TasksPage({
 }: {
   searchParams: Promise<TaskListSearchParams>;
 }) {
-  if (!flags.tasksEnabled) notFound();
-
   const ctx = await getCurrentContext();
   if (!ctx) redirect("/login?from=/tasks");
 

@@ -60,11 +60,7 @@ export default async function AppLayout({
         }}
         isImpersonating={ctx.isImpersonating}
         flagSet={{
-          analysisEnabled: flags.analysisEnabled,
-          documentationEnabled: flags.documentationEnabled,
           regulationsEnabled: flags.regulationsEnabled,
-          teamOverviewEnabled: flags.teamOverviewEnabled,
-          tasksEnabled: flags.tasksEnabled,
         }}
       />
       <SidebarInset>

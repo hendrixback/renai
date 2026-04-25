@@ -50,20 +50,15 @@ type SidebarCompany = {
  *   Dashboard → Waste Flows → Carbon Footprint → Analysis → Documentation
  *             → Regulations → Team Overview
  *
- * Unreleased modules (Regulations, Team Overview, Tasks) are
- * flag-gated so production only shows what actually works. Flag values
- * are passed in as props from the server-rendered layout — this avoids
- * the dev-mode hydration mismatch that occurs when a client component
- * reads `flags.*` directly while the server reads it at runtime
- * (Turbopack inlines client-side, Node reads server-side, and the two
- * can disagree mid-HMR).
+ * Regulations is the only flag-gated module today (work in progress).
+ * Flag values come in as props from the server-rendered layout — this
+ * avoids dev-mode hydration mismatches that occur when a client
+ * component reads `flags.*` directly while the server reads it at
+ * runtime (Turbopack inlines client-side, Node reads server-side,
+ * and the two can disagree mid-HMR).
  */
 export type SidebarFlagSet = {
-  analysisEnabled: boolean
-  documentationEnabled: boolean
   regulationsEnabled: boolean
-  teamOverviewEnabled: boolean
-  tasksEnabled: boolean
 }
 
 function buildNavItems(flagSet: SidebarFlagSet): NavItem[] {
@@ -75,41 +70,17 @@ function buildNavItems(flagSet: SidebarFlagSet): NavItem[] {
       url: "/carbon-footprint",
       icon: <LeafIcon />,
     },
+    { title: "Analysis", url: "/analysis", icon: <BarChart3Icon /> },
+    { title: "Documentation", url: "/documentation", icon: <FileTextIcon /> },
+    { title: "Team Overview", url: "/team-overview", icon: <UsersIcon /> },
+    { title: "Tasks", url: "/tasks", icon: <ListChecksIcon /> },
   ]
-
-  if (flagSet.analysisEnabled) {
-    items.push({ title: "Analysis", url: "/analysis", icon: <BarChart3Icon /> })
-  }
-
-  if (flagSet.documentationEnabled) {
-    items.push({
-      title: "Documentation",
-      url: "/documentation",
-      icon: <FileTextIcon />,
-    })
-  }
 
   if (flagSet.regulationsEnabled) {
     items.push({
       title: "Regulations",
       url: "/regulations",
       icon: <BookOpenIcon />,
-    })
-  }
-
-  if (flagSet.teamOverviewEnabled) {
-    items.push({
-      title: "Team Overview",
-      url: "/team-overview",
-      icon: <UsersIcon />,
-    })
-  }
-
-  if (flagSet.tasksEnabled) {
-    items.push({
-      title: "Tasks",
-      url: "/tasks",
-      icon: <ListChecksIcon />,
     })
   }
 

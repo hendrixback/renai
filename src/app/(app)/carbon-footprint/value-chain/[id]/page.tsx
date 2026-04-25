@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 
 import { getCurrentContext } from "@/lib/auth";
-import { flags } from "@/lib/flags";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -84,8 +83,6 @@ export default async function Scope3DetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!flags.scope3Enabled) notFound();
-
   const ctx = await getCurrentContext();
   if (!ctx) redirect("/login?from=/carbon-footprint/value-chain");
 

@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 
 import { getCurrentContext } from "@/lib/auth";
-import { flags } from "@/lib/flags";
 import { listTasks } from "@/lib/tasks";
 import {
   getTeamMemberProfile,
@@ -49,8 +48,6 @@ export default async function TeamMemberPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!flags.teamOverviewEnabled) notFound();
-
   const ctx = await getCurrentContext();
   if (!ctx) redirect("/login?from=/team-overview");
 

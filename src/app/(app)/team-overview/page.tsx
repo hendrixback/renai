@@ -1,9 +1,8 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2Icon, UserPlus2Icon, UsersIcon } from "lucide-react";
 
 import { canManageTeam, getCurrentContext } from "@/lib/auth";
-import { flags } from "@/lib/flags";
 import {
   getTeamOverview,
   parseTeamFilters,
@@ -23,8 +22,6 @@ export default async function TeamOverviewPage({
 }: {
   searchParams: Promise<TeamSearchParams>;
 }) {
-  if (!flags.teamOverviewEnabled) notFound();
-
   const ctx = await getCurrentContext();
   if (!ctx) redirect("/login?from=/team-overview");
 

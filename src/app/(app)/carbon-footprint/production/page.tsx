@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 
 import { getCurrentContext } from "@/lib/auth";
-import { flags } from "@/lib/flags";
 import { prisma } from "@/lib/prisma";
 import { computePef } from "@/lib/production";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +18,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ComingSoonPanel } from "@/components/carbon/coming-soon-panel";
 import { DeleteProductionVolumeButton } from "@/components/carbon/delete-production-volume-button";
 import { PefPanel } from "@/components/carbon/pef-panel";
 import { RegisterProductionDialog } from "@/components/carbon/register-production-dialog";
@@ -29,21 +27,6 @@ export const dynamic = "force-dynamic";
 const intnf = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
 
 export default async function ProductionPage() {
-  if (!flags.productionIntensityEnabled) {
-    return (
-      <ComingSoonPanel
-        title="Production emissions"
-        description="Track per-product CO2 intensity — inputs (raw materials, energy per unit) and allocated emissions across your output volume."
-        examples={[
-          "Product-level emission factors (kgCO2e per unit produced)",
-          "Link production volume to your Scope 1 + 2 consumption",
-          "Allocate site emissions across product lines",
-          "Calculate carbon intensity per ton of output for ESG reporting",
-        ]}
-      />
-    );
-  }
-
   const ctx = await getCurrentContext();
   if (!ctx) redirect("/login?from=/carbon-footprint/production");
 

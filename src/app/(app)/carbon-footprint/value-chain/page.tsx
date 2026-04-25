@@ -7,7 +7,6 @@ import {
   factorSourceFromSnapshot,
   type CarbonListSearchParams,
 } from "@/lib/carbon-filters";
-import { flags } from "@/lib/flags";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,7 +24,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CarbonFiltersBar } from "@/components/carbon/carbon-filters-bar";
-import { ComingSoonPanel } from "@/components/carbon/coming-soon-panel";
 import { RegisterScope3Dialog } from "@/components/carbon/register-scope3-dialog";
 import { ExportMenu } from "@/components/export-menu";
 import { serializeSearchParams } from "@/lib/url";
@@ -47,22 +45,6 @@ export default async function ValueChainPage({
 }: {
   searchParams: Promise<CarbonListSearchParams>;
 }) {
-  if (!flags.scope3Enabled) {
-    return (
-      <ComingSoonPanel
-        title="Scope 3 — Value chain"
-        description="Upstream and downstream emissions outside your direct operations. This is often the largest portion of a company's footprint."
-        examples={[
-          "Purchased goods & services (from suppliers)",
-          "Upstream & downstream transportation / distribution",
-          "Employee commuting and business travel",
-          "Use of sold products; end-of-life treatment",
-          "Leased assets, investments, franchises",
-        ]}
-      />
-    );
-  }
-
   const ctx = await getCurrentContext();
   if (!ctx) notFound();
 
