@@ -1,6 +1,9 @@
 import Link from "next/link"
 import * as React from "react"
 
+import { getCurrentContext } from "@/lib/auth"
+import { HeaderNotifications } from "@/components/header-notifications"
+import { HeaderUserMenu } from "@/components/header-user-menu"
 import { ModeToggle } from "@/components/mode-toggle"
 import {
   Breadcrumb,
@@ -15,7 +18,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 
 type Crumb = { label: string; href?: string }
 
-export function PageHeader({
+export async function PageHeader({
   title,
   breadcrumbs,
   actions,
@@ -24,6 +27,7 @@ export function PageHeader({
   breadcrumbs?: Crumb[]
   actions?: React.ReactNode
 }) {
+  const ctx = await getCurrentContext()
   const trail: Crumb[] = [
     { label: "RenAI", href: "/dashboard" },
     ...(breadcrumbs ?? []),
@@ -65,9 +69,19 @@ export function PageHeader({
             })}
           </BreadcrumbList>
         </Breadcrumb>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1.5">
           {actions}
+          <Separator
+            orientation="vertical"
+            className="mx-1 hidden data-vertical:h-5 data-vertical:self-auto md:block"
+          />
+          <HeaderNotifications />
           <ModeToggle />
+          {ctx ? (
+            <HeaderUserMenu
+              user={{ name: ctx.user.name, email: ctx.user.email }}
+            />
+          ) : null}
         </div>
       </div>
     </header>
