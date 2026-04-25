@@ -13,11 +13,13 @@ import {
   EMPLOYEE_COMMUTING_MODES,
   FREIGHT_MODES,
   FUEL_ENERGY_SUBTYPES,
+  PURCHASED_GOODS_SECTORS,
   SCOPE3_CATEGORIES,
   type BusinessTravelMode,
   type EmployeeCommutingMode,
   type FreightMode,
   type FuelEnergySubtype,
+  type PurchasedGoodsSector,
   type Scope3CategoryValue,
 } from "@/lib/schemas/scope3.schema";
 import { REGIONS } from "@/lib/carbon-options";
@@ -96,6 +98,25 @@ const FUEL_ENERGY_LABELS: Record<FuelEnergySubtype, { label: string; unit: strin
   wtt_electricity: { label: "Electricity — upstream + T&D losses", unit: "kWh" },
 };
 
+const PURCHASED_GOODS_LABELS: Record<PurchasedGoodsSector, string> = {
+  food_beverage_tobacco: "Food, beverage & tobacco",
+  textile_apparel: "Textiles & apparel",
+  chemicals_plastics: "Chemicals & plastics",
+  metals_basic: "Basic metals",
+  machinery_equipment: "Machinery & equipment",
+  construction: "Construction materials",
+  electronics: "Electronics",
+  pharmaceuticals: "Pharmaceuticals",
+  transport_services: "Transport services",
+  professional_services: "Professional services (consulting, legal)",
+  it_services: "IT services",
+  admin_services: "Admin services",
+  utilities: "Utilities",
+  retail_wholesale: "Retail / wholesale",
+  other_manufacturing: "Other manufacturing",
+  other_services: "Other services",
+};
+
 function FieldError({ errors }: { errors?: string[] }) {
   if (!errors?.length) return null;
   return <p className="text-sm text-destructive">{errors[0]}</p>;
@@ -152,6 +173,12 @@ export function RegisterScope3Dialog({
     React.useState<FuelEnergySubtype>("wtt_diesel");
   const [fuelEnergyQuantity, setFuelEnergyQuantity] = React.useState("");
 
+  // PURCHASED_GOODS_SERVICES (Cat 1 / spend-based)
+  const [purchasedSector, setPurchasedSector] =
+    React.useState<PurchasedGoodsSector>("other_manufacturing");
+  const [purchasedSpend, setPurchasedSpend] = React.useState("");
+  const [purchasedSupplier, setPurchasedSupplier] = React.useState("");
+
   // Generic fallback (remaining categories)
   const [amount, setAmount] = React.useState("");
   const [amountUnit, setAmountUnit] = React.useState("");
@@ -182,6 +209,9 @@ export function RegisterScope3Dialog({
     setWasteFlowId("");
     setFuelEnergySubtype("wtt_diesel");
     setFuelEnergyQuantity("");
+    setPurchasedSector("other_manufacturing");
+    setPurchasedSpend("");
+    setPurchasedSupplier("");
     setAmount("");
     setAmountUnit("");
     setKgCo2eOverride("");
@@ -278,6 +308,22 @@ export function RegisterScope3Dialog({
         data,
       };
     }
+    if (category === "PURCHASED_GOODS_SERVICES") {
+      const data: Record<string, unknown> = {
+        sector: purchasedSector,
+        spendEur: Number(purchasedSpend || "0"),
+        region,
+      };
+      if (purchasedSupplier) data.supplier = purchasedSupplier;
+      return {
+        category,
+        description: description || purchasedSupplier || PURCHASED_GOODS_LABELS[purchasedSector],
+        month,
+        siteId: siteId || undefined,
+        notes: notes || undefined,
+        data,
+      };
+    }
     const data: Record<string, unknown> = {};
     if (amount) data.amount = Number(amount);
     if (amountUnit) data.unit = amountUnit;
@@ -312,6 +358,7 @@ export function RegisterScope3Dialog({
     category === "UPSTREAM_TRANSPORT" || category === "DOWNSTREAM_TRANSPORT";
   const isWasteRef = category === "WASTE_GENERATED";
   const isFuelEnergy = category === "FUEL_ENERGY_RELATED";
+  const isPurchased = category === "PURCHASED_GOODS_SERVICES";
   const isHotel = isTravel && travelMode === "hotel_night";
 
   return (
@@ -395,7 +442,59 @@ export function RegisterScope3Dialog({
             </Field>
           </div>
 
-          {isFuelEnergy ? (
+          {isPurchased ? (
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Purchased goods & services (spend-based)
+              </p>
+              <Field>
+                <FieldLabel htmlFor="purchasedSector">Sector</FieldLabel>
+                <select
+                  id="purchasedSector"
+                  value={purchasedSector}
+                  onChange={(e) =>
+                    setPurchasedSector(e.target.value as PurchasedGoodsSector)
+                  }
+                  className={selectClass}
+                >
+                  {PURCHASED_GOODS_SECTORS.map((s) => (
+                    <option key={s} value={s}>
+                      {PURCHASED_GOODS_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="purchasedSpend">Spend (EUR)</FieldLabel>
+                  <Input
+                    id="purchasedSpend"
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={purchasedSpend}
+                    onChange={(e) => setPurchasedSpend(e.target.value)}
+                  />
+                  <FieldError errors={state.fieldErrors["data.spendEur"]} />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="purchasedSupplier">
+                    Supplier (optional)
+                  </FieldLabel>
+                  <Input
+                    id="purchasedSupplier"
+                    value={purchasedSupplier}
+                    onChange={(e) => setPurchasedSupplier(e.target.value)}
+                  />
+                </Field>
+              </div>
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                Spend × sector intensity (EXIOBASE 3.7 approx). Tenants
+                with detailed supplier data should override the factor
+                per-supplier or upload a finer NACE-keyed table.
+              </p>
+            </div>
+          ) : isFuelEnergy ? (
             <div className="rounded-lg border bg-muted/20 p-3">
               <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Fuel & energy (well-to-tank)

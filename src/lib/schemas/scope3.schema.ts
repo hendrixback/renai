@@ -170,6 +170,45 @@ export const fuelEnergyDataSchema = z.object({
 export type FuelEnergyData = z.infer<typeof fuelEnergyDataSchema>;
 
 /**
+ * PURCHASED_GOODS_SERVICES (Cat 1) — spend-based MVP. Activity is the
+ * EUR spent in a given industry sector × the sector's average emission
+ * intensity (EXIOBASE-derived approximations, refined per tenant via
+ * company-specific factor overrides).
+ *
+ * Sectors aligned (loosely) to NACE Rev.2 high-level groupings — kept
+ * intentionally short for the form. Tenants who need finer granularity
+ * upload their own factor table.
+ */
+export const PURCHASED_GOODS_SECTORS = [
+  "food_beverage_tobacco",
+  "textile_apparel",
+  "chemicals_plastics",
+  "metals_basic",
+  "machinery_equipment",
+  "construction",
+  "electronics",
+  "pharmaceuticals",
+  "transport_services",
+  "professional_services",
+  "it_services",
+  "admin_services",
+  "utilities",
+  "retail_wholesale",
+  "other_manufacturing",
+  "other_services",
+] as const;
+export const purchasedGoodsSectorSchema = z.enum(PURCHASED_GOODS_SECTORS);
+export type PurchasedGoodsSector = z.infer<typeof purchasedGoodsSectorSchema>;
+
+export const purchasedGoodsDataSchema = z.object({
+  sector: purchasedGoodsSectorSchema,
+  spendEur: z.number().positive(),
+  supplier: z.string().trim().max(120).optional(),
+  region: z.string().min(2).max(8).default("GLOBAL"),
+});
+export type PurchasedGoodsData = z.infer<typeof purchasedGoodsDataSchema>;
+
+/**
  * EMPLOYEE_COMMUTING payload (GHG Protocol Cat 7).
  * Activity-based: distance per day × days per year × employees → annual
  * pkm or vehicle.km, multiplied by the matching factor.
@@ -219,6 +258,8 @@ export const registerScope3Schema = z
       parsed = wasteGeneratedDataSchema.safeParse(value.data);
     } else if (value.category === "FUEL_ENERGY_RELATED") {
       parsed = fuelEnergyDataSchema.safeParse(value.data);
+    } else if (value.category === "PURCHASED_GOODS_SERVICES") {
+      parsed = purchasedGoodsDataSchema.safeParse(value.data);
     } else {
       parsed = genericScope3DataSchema.safeParse(value.data);
     }

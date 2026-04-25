@@ -158,4 +158,26 @@ export const emissionFactors: EmissionFactorSeed[] = [
   { category: "FUEL",        subtype: "wtt_heating_oil",  unit: "L",   kgCo2ePerUnit: 0.60900, source: "DEFRA 2024 WTT", region: "GLOBAL", year: 2024 },
   { category: "FUEL",        subtype: "wtt_coal",         unit: "kg",  kgCo2ePerUnit: 0.13780, source: "DEFRA 2024 WTT", region: "GLOBAL", year: 2024 },
   { category: "ELECTRICITY", subtype: "wtt_electricity",  unit: "kWh", kgCo2ePerUnit: 0.05070, source: "DEFRA 2024 WTT", region: "GLOBAL", year: 2024, notes: "Upstream + T&D losses combined." },
+
+  // ─── Scope 3 — Purchased goods & services (Cat 1, spend-based) ─
+  // EXIOBASE 3.7 / ADEME-derived sector intensity factors. Approximate;
+  // tenants with detailed supplier data should override per-supplier or
+  // upload a finer NACE-keyed factor table.
+  // Unit is kgCO₂e / EUR.
+  { category: "PURCHASED_GOODS", subtype: "food_beverage_tobacco",  unit: "EUR", kgCo2ePerUnit: 1.20, source: "EXIOBASE 3.7 (approx)", region: "EU",     year: 2023, notes: "High agricultural / land-use input intensity." },
+  { category: "PURCHASED_GOODS", subtype: "textile_apparel",        unit: "EUR", kgCo2ePerUnit: 0.85, source: "EXIOBASE 3.7 (approx)", region: "GLOBAL", year: 2023 },
+  { category: "PURCHASED_GOODS", subtype: "chemicals_plastics",     unit: "EUR", kgCo2ePerUnit: 0.65, source: "EXIOBASE 3.7 (approx)", region: "GLOBAL", year: 2023 },
+  { category: "PURCHASED_GOODS", subtype: "metals_basic",           unit: "EUR", kgCo2ePerUnit: 1.50, source: "EXIOBASE 3.7 (approx)", region: "GLOBAL", year: 2023 },
+  { category: "PURCHASED_GOODS", subtype: "machinery_equipment",    unit: "EUR", kgCo2ePerUnit: 0.45, source: "EXIOBASE 3.7 (approx)", region: "GLOBAL", year: 2023 },
+  { category: "PURCHASED_GOODS", subtype: "construction",           unit: "EUR", kgCo2ePerUnit: 0.55, source: "EXIOBASE 3.7 (approx)", region: "GLOBAL", year: 2023 },
+  { category: "PURCHASED_GOODS", subtype: "electronics",            unit: "EUR", kgCo2ePerUnit: 0.40, source: "EXIOBASE 3.7 (approx)", region: "GLOBAL", year: 2023 },
+  { category: "PURCHASED_GOODS", subtype: "pharmaceuticals",        unit: "EUR", kgCo2ePerUnit: 0.35, source: "EXIOBASE 3.7 (approx)", region: "GLOBAL", year: 2023 },
+  { category: "PURCHASED_GOODS", subtype: "transport_services",     unit: "EUR", kgCo2ePerUnit: 0.50, source: "EXIOBASE 3.7 (approx)", region: "GLOBAL", year: 2023 },
+  { category: "PURCHASED_GOODS", subtype: "professional_services",  unit: "EUR", kgCo2ePerUnit: 0.10, source: "EXIOBASE 3.7 (approx)", region: "GLOBAL", year: 2023 },
+  { category: "PURCHASED_GOODS", subtype: "it_services",            unit: "EUR", kgCo2ePerUnit: 0.05, source: "EXIOBASE 3.7 (approx)", region: "GLOBAL", year: 2023 },
+  { category: "PURCHASED_GOODS", subtype: "admin_services",         unit: "EUR", kgCo2ePerUnit: 0.05, source: "EXIOBASE 3.7 (approx)", region: "GLOBAL", year: 2023 },
+  { category: "PURCHASED_GOODS", subtype: "utilities",              unit: "EUR", kgCo2ePerUnit: 0.35, source: "EXIOBASE 3.7 (approx)", region: "GLOBAL", year: 2023 },
+  { category: "PURCHASED_GOODS", subtype: "retail_wholesale",       unit: "EUR", kgCo2ePerUnit: 0.20, source: "EXIOBASE 3.7 (approx)", region: "GLOBAL", year: 2023 },
+  { category: "PURCHASED_GOODS", subtype: "other_manufacturing",    unit: "EUR", kgCo2ePerUnit: 0.55, source: "EXIOBASE 3.7 (approx)", region: "GLOBAL", year: 2023 },
+  { category: "PURCHASED_GOODS", subtype: "other_services",         unit: "EUR", kgCo2ePerUnit: 0.10, source: "EXIOBASE 3.7 (approx)", region: "GLOBAL", year: 2023 },
 ];

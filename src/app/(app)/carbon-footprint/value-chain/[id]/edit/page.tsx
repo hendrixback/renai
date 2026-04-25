@@ -8,6 +8,7 @@ import type {
   EmployeeCommutingMode,
   FreightMode,
   FuelEnergySubtype,
+  PurchasedGoodsSector,
   Scope3CategoryValue,
 } from "@/lib/schemas/scope3.schema";
 import { PageHeader } from "@/components/page-header";
@@ -81,6 +82,10 @@ export default async function EditScope3Page({
   const fuelEnergySubtype = isFuelEnergy
     ? (asString(data.subtype) as FuelEnergySubtype)
     : null;
+  const isPurchased = entry.category === "PURCHASED_GOODS_SERVICES";
+  const purchasedSector = isPurchased
+    ? (asString(data.sector) as PurchasedGoodsSector)
+    : null;
 
   const initial: Scope3EntryInitial = {
     id: entry.id,
@@ -108,6 +113,9 @@ export default async function EditScope3Page({
     wasteFlowId: asString(data.wasteFlowId),
     fuelEnergySubtype: fuelEnergySubtype || null,
     fuelEnergyQuantity: isFuelEnergy ? asNumberString(data.quantity) : "",
+    purchasedSector: purchasedSector || null,
+    purchasedSpend: isPurchased ? asNumberString(data.spendEur) : "",
+    purchasedSupplier: isPurchased ? asString(data.supplier) : "",
     amount: asNumberString(data.amount),
     amountUnit: isFuelEnergy ? "" : asString(data.unit),
     kgCo2eOverride: asNumberString(data.kgCo2eOverride),

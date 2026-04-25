@@ -14,10 +14,12 @@ import {
   EMPLOYEE_COMMUTING_MODES,
   FREIGHT_MODES,
   FUEL_ENERGY_SUBTYPES,
+  PURCHASED_GOODS_SECTORS,
   type BusinessTravelMode,
   type EmployeeCommutingMode,
   type FreightMode,
   type FuelEnergySubtype,
+  type PurchasedGoodsSector,
   type Scope3CategoryValue,
 } from "@/lib/schemas/scope3.schema";
 import { REGIONS } from "@/lib/carbon-options";
@@ -78,6 +80,25 @@ const FUEL_ENERGY_LABELS: Record<FuelEnergySubtype, { label: string; unit: strin
   wtt_electricity: { label: "Electricity — upstream + T&D losses", unit: "kWh" },
 };
 
+const PURCHASED_GOODS_LABELS: Record<PurchasedGoodsSector, string> = {
+  food_beverage_tobacco: "Food, beverage & tobacco",
+  textile_apparel: "Textiles & apparel",
+  chemicals_plastics: "Chemicals & plastics",
+  metals_basic: "Basic metals",
+  machinery_equipment: "Machinery & equipment",
+  construction: "Construction materials",
+  electronics: "Electronics",
+  pharmaceuticals: "Pharmaceuticals",
+  transport_services: "Transport services",
+  professional_services: "Professional services",
+  it_services: "IT services",
+  admin_services: "Admin services",
+  utilities: "Utilities",
+  retail_wholesale: "Retail / wholesale",
+  other_manufacturing: "Other manufacturing",
+  other_services: "Other services",
+};
+
 export type Scope3EntryInitial = {
   id: string;
   category: Scope3CategoryValue;
@@ -109,6 +130,10 @@ export type Scope3EntryInitial = {
   // FUEL_ENERGY_RELATED (Cat 3 / WTT)
   fuelEnergySubtype: FuelEnergySubtype | null;
   fuelEnergyQuantity: string;
+  // PURCHASED_GOODS_SERVICES (Cat 1 / spend-based)
+  purchasedSector: PurchasedGoodsSector | null;
+  purchasedSpend: string;
+  purchasedSupplier: string;
   // Generic fallback
   amount: string;
   amountUnit: string;
@@ -178,6 +203,14 @@ export function EditScope3EntryForm({
     entry.fuelEnergyQuantity,
   );
 
+  const [purchasedSector, setPurchasedSector] = React.useState<PurchasedGoodsSector>(
+    entry.purchasedSector ?? "other_manufacturing",
+  );
+  const [purchasedSpend, setPurchasedSpend] = React.useState(entry.purchasedSpend);
+  const [purchasedSupplier, setPurchasedSupplier] = React.useState(
+    entry.purchasedSupplier,
+  );
+
   const [amount, setAmount] = React.useState(entry.amount);
   const [amountUnit, setAmountUnit] = React.useState(entry.amountUnit);
   const [kgCo2eOverride, setKgCo2eOverride] = React.useState(entry.kgCo2eOverride);
@@ -189,6 +222,7 @@ export function EditScope3EntryForm({
     entry.category === "DOWNSTREAM_TRANSPORT";
   const isWasteRef = entry.category === "WASTE_GENERATED";
   const isFuelEnergy = entry.category === "FUEL_ENERGY_RELATED";
+  const isPurchased = entry.category === "PURCHASED_GOODS_SERVICES";
   const isHotel = isTravel && travelMode === "hotel_night";
 
   function buildPayload(): Record<string, unknown> {
@@ -273,6 +307,21 @@ export function EditScope3EntryForm({
         data,
       };
     }
+    if (isPurchased) {
+      const data: Record<string, unknown> = {
+        sector: purchasedSector,
+        spendEur: Number(purchasedSpend || "0"),
+        region,
+      };
+      if (purchasedSupplier) data.supplier = purchasedSupplier;
+      return {
+        description,
+        month,
+        siteId: siteId || undefined,
+        notes: notes || undefined,
+        data,
+      };
+    }
     const data: Record<string, unknown> = {};
     if (amount) data.amount = Number(amount);
     if (amountUnit) data.unit = amountUnit;
@@ -345,7 +394,53 @@ export function EditScope3EntryForm({
             </Field>
           </div>
 
-          {isFuelEnergy ? (
+          {isPurchased ? (
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Purchased goods & services
+              </p>
+              <Field>
+                <FieldLabel htmlFor="purchasedSector">Sector</FieldLabel>
+                <select
+                  id="purchasedSector"
+                  value={purchasedSector}
+                  onChange={(e) =>
+                    setPurchasedSector(e.target.value as PurchasedGoodsSector)
+                  }
+                  className={selectClass}
+                >
+                  {PURCHASED_GOODS_SECTORS.map((s) => (
+                    <option key={s} value={s}>
+                      {PURCHASED_GOODS_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="purchasedSpend">Spend (EUR)</FieldLabel>
+                  <Input
+                    id="purchasedSpend"
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={purchasedSpend}
+                    onChange={(e) => setPurchasedSpend(e.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="purchasedSupplier">
+                    Supplier (optional)
+                  </FieldLabel>
+                  <Input
+                    id="purchasedSupplier"
+                    value={purchasedSupplier}
+                    onChange={(e) => setPurchasedSupplier(e.target.value)}
+                  />
+                </Field>
+              </div>
+            </div>
+          ) : isFuelEnergy ? (
             <div className="rounded-lg border bg-muted/20 p-3">
               <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Fuel & energy (well-to-tank)

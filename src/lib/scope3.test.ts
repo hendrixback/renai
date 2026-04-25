@@ -18,6 +18,7 @@ import {
   computeEmployeeCommutingEmission,
   computeFreightEmission,
   computeFuelEnergyEmission,
+  computePurchasedGoodsEmission,
   computeWasteGeneratedEmission,
 } from "./scope3";
 
@@ -317,5 +318,39 @@ describe("computeFuelEnergyEmission (Cat 3 / WTT)", () => {
         where: expect.objectContaining({ category: "ELECTRICITY" }),
       }),
     );
+  });
+});
+
+describe("computePurchasedGoodsEmission (Cat 1, spend-based)", () => {
+  it("multiplies spend × sector intensity", async () => {
+    findFirst.mockResolvedValueOnce({
+      ...baseFactor,
+      category: "PURCHASED_GOODS",
+      subtype: "metals_basic",
+      unit: "EUR",
+      kgCo2ePerUnit: 1.5,
+    });
+    const result = await computePurchasedGoodsEmission("co1", {
+      sector: "metals_basic",
+      spendEur: 50000,
+      region: "GLOBAL",
+    });
+    // 1.5 × 50000 = 75000
+    expect(result.kgCo2e).toBeCloseTo(75000, 0);
+    expect(result.factorSnapshot).toMatchObject({ type: "metals_basic" });
+  });
+
+  it("returns nulls when no factor matches the sector", async () => {
+    findFirst.mockResolvedValue(null);
+    const result = await computePurchasedGoodsEmission("co1", {
+      sector: "other_services",
+      spendEur: 1000,
+      region: "MARS",
+    });
+    expect(result).toEqual({
+      factorId: null,
+      kgCo2e: null,
+      factorSnapshot: null,
+    });
   });
 });

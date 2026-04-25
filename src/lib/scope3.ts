@@ -8,6 +8,7 @@ import type {
   FreightData,
   FuelEnergyData,
   FuelEnergySubtype,
+  PurchasedGoodsData,
   Scope3CategoryValue,
   WasteGeneratedData,
 } from "@/lib/schemas/scope3.schema";
@@ -230,6 +231,27 @@ export async function computeWasteGeneratedEmission(
   };
 }
 
+export async function computePurchasedGoodsEmission(
+  companyId: string,
+  data: PurchasedGoodsData,
+): Promise<Scope3Computation> {
+  // Spend-based: factor is kgCO₂e per EUR for the given sector.
+  const factor = await findFactor({
+    category: "PURCHASED_GOODS",
+    subtype: data.sector,
+    region: data.region,
+    companyId,
+  });
+  if (!factor) return ZERO;
+
+  const kgCo2e = Number(factor.kgCo2ePerUnit) * data.spendEur;
+  return {
+    factorId: factor.id,
+    kgCo2e,
+    factorSnapshot: snapshot(factor),
+  };
+}
+
 export async function computeFuelEnergyEmission(
   companyId: string,
   data: FuelEnergyData,
@@ -290,6 +312,12 @@ export async function computeScope3Emission(opts: {
   }
   if (opts.category === "FUEL_ENERGY_RELATED") {
     return computeFuelEnergyEmission(opts.companyId, opts.data as FuelEnergyData);
+  }
+  if (opts.category === "PURCHASED_GOODS_SERVICES") {
+    return computePurchasedGoodsEmission(
+      opts.companyId,
+      opts.data as PurchasedGoodsData,
+    );
   }
 
   const generic = opts.data as { kgCo2eOverride?: number } | null;
