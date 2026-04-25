@@ -1,7 +1,15 @@
-import { Button, Section, Text } from "@react-email/components";
+import { Section, Text } from "@react-email/components";
 import * as React from "react";
 
-import { EmailLayout } from "./_components";
+import {
+  EmailLayout,
+  PrimaryButton,
+  baseStyles,
+  captionStyle,
+  headingStyle,
+  paragraphStyle,
+  tokens,
+} from "./_components";
 
 export type TaskAssignedEmailProps = {
   assigneeName: string | null;
@@ -27,6 +35,16 @@ const PRIORITY_LABELS: Record<TaskAssignedEmailProps["priority"], string> = {
   CRITICAL: "Critical",
 };
 
+const PRIORITY_BADGE: Record<
+  TaskAssignedEmailProps["priority"],
+  { bg: string; fg: string }
+> = {
+  LOW: { bg: "#eef0f3", fg: "#475569" },
+  MEDIUM: { bg: "#dbeafe", fg: "#1e40af" },
+  HIGH: { bg: "#fde68a", fg: "#92400e" },
+  CRITICAL: { bg: "#fecaca", fg: "#991b1b" },
+};
+
 export default function TaskAssignedEmail({
   assigneeName,
   assignerName,
@@ -39,51 +57,122 @@ export default function TaskAssignedEmail({
 }: TaskAssignedEmailProps) {
   const assignerLabel = assignerName ?? "An admin";
   const greetingName = assigneeName?.split(" ")[0] ?? "there";
+  const badge = PRIORITY_BADGE[priority];
 
   return (
     <EmailLayout
       preview={`${assignerLabel} assigned you "${taskTitle}" on RenAI`}
     >
-      <Section>
-        <Text className="m-0 text-xl font-semibold">New task assigned</Text>
-        <Text className="mt-3 text-[15px] text-[#334155]">
+      <Section style={baseStyles.contentSection}>
+        <Text style={headingStyle}>New task assigned</Text>
+        <Text style={paragraphStyle}>
           Hi {greetingName}, {assignerLabel} assigned you a task in{" "}
-          <strong>{companyName}</strong>:
+          <strong>{companyName}</strong>.
         </Text>
-      </Section>
 
-      <Section className="mt-4 rounded-md border border-[#e2e8f0] bg-[#f8fafc] p-4">
-        <Text className="m-0 text-base font-semibold text-[#0f172a]">
-          {taskTitle}
-        </Text>
-        {taskDescription ? (
-          <Text className="mt-2 text-sm text-[#475569]">{taskDescription}</Text>
-        ) : null}
-        <Text className="mt-3 text-xs text-[#64748b]">
-          Priority: <strong>{PRIORITY_LABELS[priority]}</strong>
-          {dueDate ? (
-            <>
-              {" · "}
-              Due: <strong>{dateFmt.format(dueDate)}</strong>
-            </>
-          ) : null}
-        </Text>
-      </Section>
-
-      <Section className="mt-6 text-center">
-        <Button
-          href={taskUrl}
-          className="rounded-md bg-[#0f172a] px-6 py-3 text-sm font-medium text-white"
+        <Section
+          style={{
+            marginTop: "20px",
+            padding: "20px",
+            backgroundColor: tokens.colors.accentSoft,
+            borderRadius: tokens.radius.chip,
+            border: `1px solid ${tokens.colors.borderSoft}`,
+          }}
         >
-          Open task
-        </Button>
+          {/* Priority chip */}
+          <table
+            role="presentation"
+            cellPadding={0}
+            cellSpacing={0}
+            style={{ borderCollapse: "collapse", marginBottom: "10px" }}
+          >
+            <tr>
+              <td
+                style={{
+                  backgroundColor: badge.bg,
+                  borderRadius: "999px",
+                  padding: "3px 10px",
+                }}
+              >
+                <Text
+                  style={{
+                    margin: 0,
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    color: badge.fg,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {PRIORITY_LABELS[priority]} priority
+                </Text>
+              </td>
+            </tr>
+          </table>
+
+          <Text
+            style={{
+              margin: 0,
+              fontSize: "17px",
+              fontWeight: 600,
+              color: tokens.colors.text,
+              lineHeight: 1.35,
+            }}
+          >
+            {taskTitle}
+          </Text>
+
+          {taskDescription ? (
+            <Text
+              style={{
+                margin: "8px 0 0",
+                fontSize: "14px",
+                lineHeight: 1.55,
+                color: tokens.colors.textMuted,
+              }}
+            >
+              {taskDescription}
+            </Text>
+          ) : null}
+
+          {dueDate ? (
+            <Text
+              style={{
+                margin: "14px 0 0",
+                fontSize: "12px",
+                color: tokens.colors.textSubtle,
+              }}
+            >
+              Due <strong style={{ color: tokens.colors.text }}>
+                {dateFmt.format(dueDate)}
+              </strong>
+            </Text>
+          ) : null}
+        </Section>
       </Section>
 
-      <Section className="mt-6">
-        <Text className="m-0 text-xs text-[#64748b]">
-          You can view all your assigned work at{" "}
-          <a href={taskUrl.split("/tasks")[0] + "/tasks?scope=mine"}>
-            /tasks?scope=mine
+      <Section
+        style={{
+          padding: "20px 40px 28px",
+          textAlign: "center" as const,
+        }}
+      >
+        <PrimaryButton href={taskUrl}>Open task</PrimaryButton>
+      </Section>
+
+      <Section style={{ padding: "0 40px 28px" }}>
+        <Text style={captionStyle}>
+          You can review everything assigned to you anytime at{" "}
+          <a
+            href={taskUrl}
+            style={{
+              color: tokens.colors.brand,
+              textDecoration: "none",
+              fontWeight: 500,
+            }}
+          >
+            /tasks
           </a>
           .
         </Text>
@@ -100,6 +189,6 @@ TaskAssignedEmail.PreviewProps = {
     "We need the diesel + LPG invoices for Jan-Mar to reconcile the Scope 1 entries before the audit.",
   priority: "HIGH",
   dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-  taskUrl: "https://app.renai.pt/tasks",
+  taskUrl: "https://app.renai.pt/tasks?scope=mine",
   companyName: "Maxtil",
 } satisfies TaskAssignedEmailProps;
