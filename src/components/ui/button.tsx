@@ -44,17 +44,19 @@ function Button({
   className,
   variant = "default",
   size = "default",
-  // Default to non-native because the dominant call pattern in this app
-  // is `<Button render={<Link />}>` — Base UI's default of `nativeButton:
-  // true` would warn on every such call. Real <button> uses (no `render`)
-  // still render a <button> element regardless of this flag.
-  nativeButton = false,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  // Auto-derive nativeButton from whether a `render` prop is present:
+  //   no render → real <button>          → nativeButton=true
+  //   render={<Link/>} or similar        → nativeButton=false
+  // Base UI warns either way when this is wrong, so deriving it here
+  // saves callers from having to set it on every Link-rendered Button.
+  // An explicit `nativeButton` in props still wins (spread runs after).
+  const autoNative = props.render === undefined
   return (
     <ButtonPrimitive
       data-slot="button"
-      nativeButton={nativeButton}
+      nativeButton={autoNative}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
