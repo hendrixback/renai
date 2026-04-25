@@ -25,6 +25,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
 type Site = { id: string; name: string };
+type WasteFlow = { id: string; name: string };
 
 const empty: SimpleState = { error: null, success: null, fieldErrors: {} };
 
@@ -91,6 +92,8 @@ export type Scope3EntryInitial = {
   freightDistanceKm: string;
   freightOrigin: string;
   freightDestination: string;
+  // WASTE_GENERATED reference
+  wasteFlowId: string;
   // Generic fallback
   amount: string;
   amountUnit: string;
@@ -105,9 +108,11 @@ function FieldError({ errors }: { errors?: string[] }) {
 export function EditScope3EntryForm({
   entry,
   sites,
+  wasteFlows = [],
 }: {
   entry: Scope3EntryInitial;
   sites: Site[];
+  wasteFlows?: WasteFlow[];
 }) {
   const router = useRouter();
   const [state, setState] = React.useState<SimpleState>(empty);
@@ -149,6 +154,8 @@ export function EditScope3EntryForm({
     entry.freightDestination,
   );
 
+  const [wasteFlowId, setWasteFlowId] = React.useState(entry.wasteFlowId);
+
   const [amount, setAmount] = React.useState(entry.amount);
   const [amountUnit, setAmountUnit] = React.useState(entry.amountUnit);
   const [kgCo2eOverride, setKgCo2eOverride] = React.useState(entry.kgCo2eOverride);
@@ -158,6 +165,7 @@ export function EditScope3EntryForm({
   const isFreight =
     entry.category === "UPSTREAM_TRANSPORT" ||
     entry.category === "DOWNSTREAM_TRANSPORT";
+  const isWasteRef = entry.category === "WASTE_GENERATED";
   const isHotel = isTravel && travelMode === "hotel_night";
 
   function buildPayload(): Record<string, unknown> {
@@ -207,6 +215,18 @@ export function EditScope3EntryForm({
       };
       if (freightOrigin) data.origin = freightOrigin;
       if (freightDestination) data.destination = freightDestination;
+      return {
+        description,
+        month,
+        siteId: siteId || undefined,
+        notes: notes || undefined,
+        data,
+      };
+    }
+    if (isWasteRef) {
+      const matched = wasteFlows.find((w) => w.id === wasteFlowId);
+      const data: Record<string, unknown> = { wasteFlowId };
+      if (matched) data.wasteFlowName = matched.name;
       return {
         description,
         month,
@@ -287,7 +307,35 @@ export function EditScope3EntryForm({
             </Field>
           </div>
 
-          {isFreight ? (
+          {isWasteRef ? (
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Waste flow link
+              </p>
+              {wasteFlows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No active waste flows available.
+                </p>
+              ) : (
+                <Field>
+                  <FieldLabel htmlFor="wasteFlowId">Linked waste flow</FieldLabel>
+                  <select
+                    id="wasteFlowId"
+                    value={wasteFlowId}
+                    onChange={(e) => setWasteFlowId(e.target.value)}
+                    className={selectClass}
+                  >
+                    <option value="">— Select —</option>
+                    {wasteFlows.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+            </div>
+          ) : isFreight ? (
             <div className="rounded-lg border bg-muted/20 p-3">
               <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Freight details

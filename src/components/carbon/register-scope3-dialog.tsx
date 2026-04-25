@@ -33,6 +33,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
 type Site = { id: string; name: string };
+type WasteFlow = { id: string; name: string };
 
 const empty: SimpleState = { error: null, success: null, fieldErrors: {} };
 
@@ -88,7 +89,13 @@ function FieldError({ errors }: { errors?: string[] }) {
   return <p className="text-sm text-destructive">{errors[0]}</p>;
 }
 
-export function RegisterScope3Dialog({ sites }: { sites: Site[] }) {
+export function RegisterScope3Dialog({
+  sites,
+  wasteFlows = [],
+}: {
+  sites: Site[];
+  wasteFlows?: WasteFlow[];
+}) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [state, setState] = React.useState<SimpleState>(empty);
@@ -125,7 +132,10 @@ export function RegisterScope3Dialog({ sites }: { sites: Site[] }) {
   const [freightOrigin, setFreightOrigin] = React.useState("");
   const [freightDestination, setFreightDestination] = React.useState("");
 
-  // Generic fallback (other 3 categories)
+  // WASTE_GENERATED — references an existing WasteFlow
+  const [wasteFlowId, setWasteFlowId] = React.useState("");
+
+  // Generic fallback (remaining categories)
   const [amount, setAmount] = React.useState("");
   const [amountUnit, setAmountUnit] = React.useState("");
   const [kgCo2eOverride, setKgCo2eOverride] = React.useState("");
@@ -152,6 +162,7 @@ export function RegisterScope3Dialog({ sites }: { sites: Site[] }) {
     setFreightDistanceKm("");
     setFreightOrigin("");
     setFreightDestination("");
+    setWasteFlowId("");
     setAmount("");
     setAmountUnit("");
     setKgCo2eOverride("");
@@ -219,6 +230,19 @@ export function RegisterScope3Dialog({ sites }: { sites: Site[] }) {
         data,
       };
     }
+    if (category === "WASTE_GENERATED") {
+      const matched = wasteFlows.find((w) => w.id === wasteFlowId);
+      const data: Record<string, unknown> = { wasteFlowId };
+      if (matched) data.wasteFlowName = matched.name;
+      return {
+        category,
+        description: description || matched?.name || "Waste flow emissions",
+        month,
+        siteId: siteId || undefined,
+        notes: notes || undefined,
+        data,
+      };
+    }
     const data: Record<string, unknown> = {};
     if (amount) data.amount = Number(amount);
     if (amountUnit) data.unit = amountUnit;
@@ -251,6 +275,7 @@ export function RegisterScope3Dialog({ sites }: { sites: Site[] }) {
   const isCommuting = category === "EMPLOYEE_COMMUTING";
   const isFreight =
     category === "UPSTREAM_TRANSPORT" || category === "DOWNSTREAM_TRANSPORT";
+  const isWasteRef = category === "WASTE_GENERATED";
   const isHotel = isTravel && travelMode === "hotel_night";
 
   return (
@@ -334,7 +359,43 @@ export function RegisterScope3Dialog({ sites }: { sites: Site[] }) {
             </Field>
           </div>
 
-          {isFreight ? (
+          {isWasteRef ? (
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Waste flow
+              </p>
+              {wasteFlows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No waste flows registered yet. Add a waste flow first, then
+                  link it here.
+                </p>
+              ) : (
+                <Field>
+                  <FieldLabel htmlFor="wasteFlowId">Linked waste flow</FieldLabel>
+                  <select
+                    id="wasteFlowId"
+                    value={wasteFlowId}
+                    onChange={(e) => setWasteFlowId(e.target.value)}
+                    className={selectClass}
+                  >
+                    <option value="">— Select —</option>
+                    {wasteFlows.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name}
+                      </option>
+                    ))}
+                  </select>
+                  <FieldError errors={state.fieldErrors["data.wasteFlowId"]} />
+                </Field>
+              )}
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                Per Amendment A3, waste-related Scope 3 records reference an
+                existing waste flow rather than duplicating data. The kgCO₂e
+                is snapshotted from the flow&apos;s current treatment-pathway
+                impact at save time.
+              </p>
+            </div>
+          ) : isFreight ? (
             <div className="rounded-lg border bg-muted/20 p-3">
               <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Freight details

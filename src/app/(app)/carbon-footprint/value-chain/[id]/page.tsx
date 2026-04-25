@@ -155,6 +155,20 @@ export default async function Scope3DetailPage({
       ? (getProp(data, "unit") as string)
       : null;
 
+  // WASTE_GENERATED → linked WasteFlow lookup so the detail page can
+  // hyperlink back to the source record.
+  const linkedWasteFlowId =
+    entry.category === "WASTE_GENERATED" &&
+    typeof getProp(data, "wasteFlowId") === "string"
+      ? (getProp(data, "wasteFlowId") as string)
+      : null;
+  const linkedWasteFlow = linkedWasteFlowId
+    ? await prisma.wasteFlow.findFirst({
+        where: { id: linkedWasteFlowId, companyId: ctx.company.id },
+        select: { id: true, name: true, deletedAt: true },
+      })
+    : null;
+
   return (
     <>
       <PageHeader
@@ -278,6 +292,24 @@ export default async function Scope3DetailPage({
                     </>
                   )}
                 </>
+              ) : entry.category === "WASTE_GENERATED" ? (
+                <DetailRow label="Linked waste flow">
+                  {linkedWasteFlow ? (
+                    <Link
+                      href={`/waste-flows/${linkedWasteFlow.id}`}
+                      className="hover:underline"
+                    >
+                      {linkedWasteFlow.name}
+                      {linkedWasteFlow.deletedAt ? (
+                        <span className="text-muted-foreground ml-2 text-xs">
+                          (deleted)
+                        </span>
+                      ) : null}
+                    </Link>
+                  ) : (
+                    <Empty />
+                  )}
+                </DetailRow>
               ) : (
                 <>
                   {genericAmount !== null ? (

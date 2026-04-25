@@ -127,6 +127,21 @@ export const freightDataSchema = z.object({
 export type FreightData = z.infer<typeof freightDataSchema>;
 
 /**
+ * WASTE_GENERATED payload (Cat 5). Per Amendment A3 we don't duplicate
+ * waste data — instead the entry references an existing WasteFlow and
+ * the kgCO₂e is snapshotted from computeWasteImpact at write time.
+ * The user picks a flow + a reporting month; we re-resolve the impact
+ * on every save so historical entries stay stable even if the source
+ * flow is later edited.
+ */
+export const wasteGeneratedDataSchema = z.object({
+  wasteFlowId: z.string().cuid(),
+  /** Snapshotted at write time so the entry doesn't drift when the flow changes. */
+  wasteFlowName: z.string().trim().max(200).optional(),
+});
+export type WasteGeneratedData = z.infer<typeof wasteGeneratedDataSchema>;
+
+/**
  * EMPLOYEE_COMMUTING payload (GHG Protocol Cat 7).
  * Activity-based: distance per day × days per year × employees → annual
  * pkm or vehicle.km, multiplied by the matching factor.
@@ -172,6 +187,8 @@ export const registerScope3Schema = z
       value.category === "DOWNSTREAM_TRANSPORT"
     ) {
       parsed = freightDataSchema.safeParse(value.data);
+    } else if (value.category === "WASTE_GENERATED") {
+      parsed = wasteGeneratedDataSchema.safeParse(value.data);
     } else {
       parsed = genericScope3DataSchema.safeParse(value.data);
     }

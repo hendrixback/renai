@@ -1,16 +1,23 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-// vi.mock is hoisted above imports — use vi.hoisted so the mock fn is in
-// scope when the factory runs.
-const { findFirst } = vi.hoisted(() => ({ findFirst: vi.fn() }));
+// vi.mock is hoisted above imports — use vi.hoisted so the mock fns are
+// in scope when the factory runs.
+const { findFirst, computeWasteImpactMock } = vi.hoisted(() => ({
+  findFirst: vi.fn(),
+  computeWasteImpactMock: vi.fn(),
+}));
 vi.mock("@/lib/prisma", () => ({
   prisma: { emissionFactor: { findFirst } },
+}));
+vi.mock("@/lib/carbon", () => ({
+  computeWasteImpact: computeWasteImpactMock,
 }));
 
 import {
   computeBusinessTravelEmission,
   computeEmployeeCommutingEmission,
   computeFreightEmission,
+  computeWasteGeneratedEmission,
 } from "./scope3";
 
 const baseFactor = {
@@ -30,6 +37,7 @@ const baseFactor = {
 
 beforeEach(() => {
   findFirst.mockReset();
+  computeWasteImpactMock.mockReset();
 });
 
 describe("computeBusinessTravelEmission", () => {
@@ -203,6 +211,62 @@ describe("computeFreightEmission", () => {
       tonnes: 1,
       distanceKm: 5000,
       region: "MARS",
+    });
+    expect(result).toEqual({
+      factorId: null,
+      kgCo2e: null,
+      factorSnapshot: null,
+    });
+  });
+});
+
+describe("computeWasteGeneratedEmission", () => {
+  it("snapshots the linked WasteFlow's currentKgCo2e", async () => {
+    computeWasteImpactMock.mockResolvedValueOnce([
+      {
+        id: "wf-other",
+        name: "Other flow",
+        categoryName: null,
+        currentDestination: null,
+        currentDisposalLabel: "Landfill",
+        annualMassKg: 100,
+        currentKgCo2e: 47,
+        recyclingKgCo2e: null,
+        savingKgCo2e: null,
+        massConvertible: true,
+      },
+      {
+        id: "wf-1",
+        name: "PET bottles",
+        categoryName: "Plastic",
+        currentDestination: "Recycler X",
+        currentDisposalLabel: "Recovery (R3)",
+        annualMassKg: 5400,
+        currentKgCo2e: 2754,
+        recyclingKgCo2e: null,
+        savingKgCo2e: null,
+        massConvertible: true,
+      },
+    ]);
+    const result = await computeWasteGeneratedEmission("co1", {
+      wasteFlowId: "wf-1",
+    });
+    expect(result.kgCo2e).toBe(2754);
+    expect(result.factorSnapshot).toMatchObject({
+      method: "waste-impact",
+      wasteFlowId: "wf-1",
+      wasteFlowName: "PET bottles",
+      annualMassKg: 5400,
+    });
+    // No emissionFactor row — the waste-impact calc resolves several
+    // factors internally and we don't link to a single one.
+    expect(result.factorId).toBeNull();
+  });
+
+  it("returns nulls when the linked flow is not found (deleted/wrong tenant)", async () => {
+    computeWasteImpactMock.mockResolvedValueOnce([]);
+    const result = await computeWasteGeneratedEmission("co1", {
+      wasteFlowId: "wf-missing",
     });
     expect(result).toEqual({
       factorId: null,

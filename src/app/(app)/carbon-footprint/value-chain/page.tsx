@@ -68,7 +68,7 @@ export default async function ValueChainPage({
   const params = await searchParams;
   const where = buildScope3EntryWhere(params, ctx.company.id);
 
-  const [entries, sites] = await Promise.all([
+  const [entries, sites, wasteFlows] = await Promise.all([
     prisma.scope3Entry.findMany({
       where,
       orderBy: { month: "desc" },
@@ -79,6 +79,13 @@ export default async function ValueChainPage({
     }),
     prisma.site.findMany({
       where: { companyId: ctx.company.id, deletedAt: null },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    // For the WASTE_GENERATED picker — only ACTIVE flows since archived
+    // ones aren't part of current operations.
+    prisma.wasteFlow.findMany({
+      where: { companyId: ctx.company.id, deletedAt: null, status: "ACTIVE" },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
@@ -109,7 +116,7 @@ export default async function ValueChainPage({
             basePath="/carbon-footprint/value-chain/export"
             searchString={serializeSearchParams(params)}
           />
-          <RegisterScope3Dialog sites={sites} />
+          <RegisterScope3Dialog sites={sites} wasteFlows={wasteFlows} />
         </div>
       </div>
 

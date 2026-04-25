@@ -44,12 +44,17 @@ export default async function EditScope3Page({
 
   const { id } = await params;
 
-  const [entry, sites] = await Promise.all([
+  const [entry, sites, wasteFlows] = await Promise.all([
     prisma.scope3Entry.findFirst({
       where: { id, companyId: ctx.company.id, deletedAt: null },
     }),
     prisma.site.findMany({
       where: { companyId: ctx.company.id, deletedAt: null },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.wasteFlow.findMany({
+      where: { companyId: ctx.company.id, deletedAt: null, status: "ACTIVE" },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
@@ -95,6 +100,7 @@ export default async function EditScope3Page({
     freightDistanceKm: isFreight ? asNumberString(data.distanceKm) : "",
     freightOrigin: isFreight ? asString(data.origin) : "",
     freightDestination: isFreight ? asString(data.destination) : "",
+    wasteFlowId: asString(data.wasteFlowId),
     amount: asNumberString(data.amount),
     amountUnit: asString(data.unit),
     kgCo2eOverride: asNumberString(data.kgCo2eOverride),
@@ -117,7 +123,11 @@ export default async function EditScope3Page({
         ]}
       />
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <EditScope3EntryForm entry={initial} sites={sites} />
+        <EditScope3EntryForm
+          entry={initial}
+          sites={sites}
+          wasteFlows={wasteFlows}
+        />
       </div>
     </>
   );

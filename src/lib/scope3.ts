@@ -1,11 +1,13 @@
 import "server-only";
 
+import { computeWasteImpact } from "@/lib/carbon";
 import { prisma } from "@/lib/prisma";
 import type {
   BusinessTravelData,
   EmployeeCommutingData,
   FreightData,
   Scope3CategoryValue,
+  WasteGeneratedData,
 } from "@/lib/schemas/scope3.schema";
 
 /**
@@ -184,10 +186,41 @@ export async function computeFreightEmission(
 }
 
 /**
- * Dispatch on category — BUSINESS_TRAVEL, EMPLOYEE_COMMUTING, and the
- * two freight categories run the full calc; the remaining 3 accept a
- * kgCo2eOverride via the generic form. When neither is available the
- * entry is persisted with NULL emissions.
+ * WASTE_GENERATED references an existing WasteFlow (Amendment A3 — we
+ * don't duplicate waste data). The kgCO₂e snapshot uses
+ * computeWasteImpact's current annual figure for the linked flow, so
+ * the entry stays stable even if the flow is later edited.
+ *
+ * Flows whose mass cannot be normalised to tonnes (e.g. quantityUnit
+ * of UNIT/PIECE) report null kgCO₂e — same behaviour as the
+ * Waste Impact view.
+ */
+export async function computeWasteGeneratedEmission(
+  companyId: string,
+  data: WasteGeneratedData,
+): Promise<Scope3Computation> {
+  const rows = await computeWasteImpact(companyId);
+  const match = rows.find((r) => r.id === data.wasteFlowId);
+  if (!match) return ZERO;
+
+  return {
+    factorId: null, // The waste-impact calc resolves multiple factors internally; no single ID to link.
+    kgCo2e: match.currentKgCo2e,
+    factorSnapshot: {
+      method: "waste-impact",
+      wasteFlowId: data.wasteFlowId,
+      wasteFlowName: match.name,
+      annualMassKg: match.annualMassKg,
+      currentDisposalLabel: match.currentDisposalLabel,
+    },
+  };
+}
+
+/**
+ * Dispatch on category — BUSINESS_TRAVEL, EMPLOYEE_COMMUTING, the two
+ * freight categories, and WASTE_GENERATED run the full calc; the
+ * remaining 2 accept a kgCo2eOverride via the generic form. When
+ * neither is available the entry is persisted with NULL emissions.
  */
 export async function computeScope3Emission(opts: {
   companyId: string;
@@ -211,6 +244,12 @@ export async function computeScope3Emission(opts: {
     opts.category === "DOWNSTREAM_TRANSPORT"
   ) {
     return computeFreightEmission(opts.companyId, opts.data as FreightData);
+  }
+  if (opts.category === "WASTE_GENERATED") {
+    return computeWasteGeneratedEmission(
+      opts.companyId,
+      opts.data as WasteGeneratedData,
+    );
   }
 
   const generic = opts.data as { kgCo2eOverride?: number } | null;
