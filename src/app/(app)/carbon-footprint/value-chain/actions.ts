@@ -60,7 +60,7 @@ export async function registerScope3Entry(
   });
 
   try {
-    const created = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       const entry = await tx.scope3Entry.create({
         data: {
           companyId: ctx.company.id,
@@ -94,7 +94,6 @@ export async function registerScope3Entry(
         },
         tx,
       );
-      return entry;
     });
 
     revalidatePath("/carbon-footprint/value-chain");

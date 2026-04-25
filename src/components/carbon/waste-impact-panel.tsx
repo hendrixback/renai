@@ -133,8 +133,8 @@ export function WasteImpactPanel({ rows }: { rows: WasteImpactRow[] }) {
         <span className="font-medium text-foreground">Estimation only.</span>{" "}
         Waste CO₂ is estimated based on the current disposal method (or landfill
         when no treatment code is set). Recycling redirects significantly reduce
-        landfill emissions — the "Potential Saving" column shows the delta
-        (negative = reduction). Only mass-based waste flows (kg, ton) are
+        landfill emissions — the &ldquo;Potential Saving&rdquo; column shows the
+        delta (negative = reduction). Only mass-based waste flows (kg, ton) are
         converted; liter/m³/unit rows are skipped.
       </p>
     </div>
