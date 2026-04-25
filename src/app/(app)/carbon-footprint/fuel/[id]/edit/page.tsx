@@ -38,7 +38,7 @@ export default async function EditFuelEntryPage({
 
   const { id } = await params;
 
-  const [entry, sites] = await Promise.all([
+  const [entry, sites, factors] = await Promise.all([
     prisma.fuelEntry.findFirst({
       where: { id, companyId: ctx.company.id, deletedAt: null },
     }),
@@ -46,6 +46,22 @@ export default async function EditFuelEntryPage({
       where: { companyId: ctx.company.id, deletedAt: null },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
+    }),
+    prisma.emissionFactor.findMany({
+      where: {
+        category: "FUEL",
+        OR: [{ companyId: null }, { companyId: ctx.company.id }],
+      },
+      select: {
+        id: true,
+        subtype: true,
+        unit: true,
+        kgCo2ePerUnit: true,
+        source: true,
+        region: true,
+        year: true,
+        companyId: true,
+      },
     }),
   ]);
 
@@ -78,7 +94,21 @@ export default async function EditFuelEntryPage({
         ]}
       />
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <EditFuelEntryForm entry={initial} sites={sites} />
+        <EditFuelEntryForm
+          entry={initial}
+          sites={sites}
+          companyId={ctx.company.id}
+          factors={factors.map((f) => ({
+            id: f.id,
+            subtype: f.subtype,
+            unit: f.unit,
+            kgCo2ePerUnit: Number(f.kgCo2ePerUnit),
+            source: f.source,
+            region: f.region,
+            year: f.year,
+            companyId: f.companyId,
+          }))}
+        />
       </div>
     </>
   );

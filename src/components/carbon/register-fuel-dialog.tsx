@@ -13,7 +13,9 @@ import {
   FUEL_UNIT_OPTIONS,
   REGIONS,
 } from "@/lib/carbon-options"
+import type { FuelFactorOption } from "@/lib/fuel-factor-preview"
 import { Button } from "@/components/ui/button"
+import { FuelFactorPreview } from "@/components/carbon/fuel-factor-preview"
 import {
   Dialog,
   DialogClose,
@@ -42,7 +44,15 @@ function FieldError({ errors }: { errors?: string[] }) {
   return <p className="text-sm text-destructive">{errors[0]}</p>
 }
 
-export function RegisterFuelDialog({ sites }: { sites: Site[] }) {
+export function RegisterFuelDialog({
+  sites,
+  factors = [],
+  companyId = "",
+}: {
+  sites: Site[]
+  factors?: FuelFactorOption[]
+  companyId?: string
+}) {
   const [open, setOpen] = useState(false)
   const [state, setState] = useState<SimpleState>(emptyState)
   const [pending, startTransition] = useTransition()
@@ -217,6 +227,15 @@ export function RegisterFuelDialog({ sites }: { sites: Site[] }) {
               </select>
             </Field>
           </div>
+
+          {factors.length > 0 ? (
+            <FuelFactorPreview
+              factors={factors}
+              fuelType={fuelType}
+              region={region}
+              companyId={companyId}
+            />
+          ) : null}
 
           <div className="grid gap-3 md:grid-cols-2">
             <Field>

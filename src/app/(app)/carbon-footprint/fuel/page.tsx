@@ -23,7 +23,7 @@ export default async function FuelPage({
   const params = await searchParams;
   const where = buildFuelEntryWhere(params, ctx.company.id);
 
-  const [entries, sites] = await Promise.all([
+  const [entries, sites, factors] = await Promise.all([
     prisma.fuelEntry.findMany({
       where,
       orderBy: { month: "desc" },
@@ -37,6 +37,22 @@ export default async function FuelPage({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    prisma.emissionFactor.findMany({
+      where: {
+        category: "FUEL",
+        OR: [{ companyId: null }, { companyId: ctx.company.id }],
+      },
+      select: {
+        id: true,
+        subtype: true,
+        unit: true,
+        kgCo2ePerUnit: true,
+        source: true,
+        region: true,
+        year: true,
+        companyId: true,
+      },
+    }),
   ]);
 
   const hasActiveFilters = Boolean(
@@ -46,6 +62,17 @@ export default async function FuelPage({
   return (
     <FuelPanel
       sites={sites}
+      companyId={ctx.company.id}
+      factors={factors.map((f) => ({
+        id: f.id,
+        subtype: f.subtype,
+        unit: f.unit,
+        kgCo2ePerUnit: Number(f.kgCo2ePerUnit),
+        source: f.source,
+        region: f.region,
+        year: f.year,
+        companyId: f.companyId,
+      }))}
       searchString={serializeSearchParams(params)}
       hasActiveFilters={hasActiveFilters}
       entries={entries.map((e) => ({

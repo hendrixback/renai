@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import type { FuelFactorOption } from "@/lib/fuel-factor-preview"
 import { DeleteFuelEntryButton } from "@/components/carbon/delete-entry-button"
 import { RegisterFuelDialog } from "@/components/carbon/register-fuel-dialog"
 import { CarbonFiltersBar } from "@/components/carbon/carbon-filters-bar"
@@ -45,11 +46,15 @@ function fuelLabel(v: string) {
 export function FuelPanel({
   entries,
   sites,
+  factors,
+  companyId,
   searchString,
   hasActiveFilters,
 }: {
   entries: Entry[]
   sites: Site[]
+  factors: FuelFactorOption[]
+  companyId: string
   /** Pre-serialised query string from the page; threaded into ExportMenu so
    *  the export honours the same filter slice the user is viewing. */
   searchString?: string
@@ -76,7 +81,11 @@ export function FuelPanel({
             basePath="/carbon-footprint/fuel/export"
             searchString={searchString}
           />
-          <RegisterFuelDialog sites={sites} />
+          <RegisterFuelDialog
+            sites={sites}
+            factors={factors}
+            companyId={companyId}
+          />
         </div>
       </div>
 

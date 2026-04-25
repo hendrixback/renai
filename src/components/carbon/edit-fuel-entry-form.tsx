@@ -15,7 +15,9 @@ import {
   FUEL_UNIT_OPTIONS,
   REGIONS,
 } from "@/lib/carbon-options";
+import type { FuelFactorOption } from "@/lib/fuel-factor-preview";
 import { Button } from "@/components/ui/button";
+import { FuelFactorPreview } from "@/components/carbon/fuel-factor-preview";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -48,9 +50,13 @@ function FieldError({ errors }: { errors?: string[] }) {
 export function EditFuelEntryForm({
   entry,
   sites,
+  factors = [],
+  companyId = "",
 }: {
   entry: FuelEntryInitial;
   sites: Site[];
+  factors?: FuelFactorOption[];
+  companyId?: string;
 }) {
   const router = useRouter();
   const [state, setState] = useState<SimpleState>(emptyState);
@@ -199,6 +205,15 @@ export function EditFuelEntryForm({
               </select>
             </Field>
           </div>
+
+          {factors.length > 0 ? (
+            <FuelFactorPreview
+              factors={factors}
+              fuelType={fuelType}
+              region={region}
+              companyId={companyId}
+            />
+          ) : null}
 
           <div className="grid gap-3 md:grid-cols-2">
             <Field>
