@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 
 import { PrismaClient } from "../src/generated/prisma/client";
 import { emissionFactors } from "./seeds/emission-factors";
+import { regulationsSeed } from "./seeds/regulations";
 import { wasteCategories } from "./seeds/waste-categories";
 import { wasteCodes, CATALOG_VERSION } from "./seeds/waste-codes";
 
@@ -156,6 +157,45 @@ async function seedAdminAndCompany() {
   // documented in this file; everyone else sets SEED_ADMIN_PASSWORD.
   console.log(`✓ Admin user: ${email} (password source: ${passwordSource})`);
   console.log(`✓ Company: ${company.name} (${company.slug})`);
+
+  await seedRegulationsForCompany(company.id, user.id);
+}
+
+/**
+ * Seed the starter regulation register for a company — only if the
+ * company currently has zero regulations. Lets customers curate their
+ * own list without re-seed clobbering edits.
+ */
+async function seedRegulationsForCompany(companyId: string, userId: string) {
+  const existingCount = await prisma.regulation.count({
+    where: { companyId, deletedAt: null },
+  });
+  if (existingCount > 0) {
+    console.log(
+      `⏭  Regulations: ${existingCount} entries already present, skipping seed`,
+    );
+    return;
+  }
+  for (const reg of regulationsSeed) {
+    await prisma.regulation.create({
+      data: {
+        companyId,
+        createdById: userId,
+        updatedById: userId,
+        title: reg.title,
+        type: reg.type,
+        geography: reg.geography,
+        topic: reg.topic,
+        summary: reg.summary,
+        sourceReference: reg.sourceReference,
+        effectiveDate: reg.effectiveDate,
+        regulatoryStatus: reg.regulatoryStatus,
+        appliesToUs: reg.appliesToUs,
+        priorityLevel: reg.priorityLevel,
+      },
+    });
+  }
+  console.log(`✓ Seeded ${regulationsSeed.length} starter regulations`);
 }
 
 async function main() {
