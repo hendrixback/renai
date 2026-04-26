@@ -1,9 +1,10 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import { Loader2 } from "lucide-react"
 
 import { signup, type SignupState } from "@/app/signup/actions"
+import { PasswordRequirements } from "@/components/password-requirements"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -12,6 +13,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { PASSWORD_MIN_LENGTH } from "@/lib/auth/password-policy"
 
 const initial: SignupState = { error: null, fieldErrors: {} }
 
@@ -34,6 +36,7 @@ export function SignupForm({
   existingUserName: string | null
 }) {
   const [state, formAction, isPending] = useActionState(signup, initial)
+  const [password, setPassword] = useState("")
 
   return (
     <form action={formAction}>
@@ -68,7 +71,9 @@ export function SignupForm({
             type="password"
             autoComplete="new-password"
             required
-            minLength={8}
+            minLength={PASSWORD_MIN_LENGTH}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
           />
           {existingUserName ? (
             <FieldDescription>
@@ -76,7 +81,7 @@ export function SignupForm({
               existing password to log in after accepting.
             </FieldDescription>
           ) : (
-            <FieldDescription>At least 8 characters.</FieldDescription>
+            <PasswordRequirements value={password} />
           )}
           <FieldError errors={state.fieldErrors.password} />
         </Field>
@@ -89,7 +94,7 @@ export function SignupForm({
             type="password"
             autoComplete="new-password"
             required
-            minLength={8}
+            minLength={PASSWORD_MIN_LENGTH}
           />
           <FieldError errors={state.fieldErrors.confirmPassword} />
         </Field>

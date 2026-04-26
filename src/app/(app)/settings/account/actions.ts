@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { logActivity } from "@/lib/activity/log-activity";
 import { getCurrentContext, getCurrentUser } from "@/lib/auth";
+import { passwordSchema } from "@/lib/auth/password-policy";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { checkLimit, limiters } from "@/lib/rate-limit";
@@ -65,13 +66,10 @@ export async function updateProfile(
   return { error: null, success: "Profile updated.", fieldErrors: {} };
 }
 
-const passwordSchema = z
+const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, "Current password is required"),
-    newPassword: z
-      .string()
-      .min(8, "New password must be at least 8 characters")
-      .max(200),
+    newPassword: passwordSchema,
     confirmPassword: z.string(),
   })
   .refine((d) => d.newPassword === d.confirmPassword, {
@@ -105,7 +103,7 @@ export async function changePassword(
     };
   }
 
-  const parsed = passwordSchema.safeParse({
+  const parsed = changePasswordSchema.safeParse({
     currentPassword: formData.get("currentPassword"),
     newPassword: formData.get("newPassword"),
     confirmPassword: formData.get("confirmPassword"),

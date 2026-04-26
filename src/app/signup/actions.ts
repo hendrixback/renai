@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 import { logActivity } from "@/lib/activity/log-activity";
+import { passwordSchema } from "@/lib/auth/password-policy";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/session";
@@ -19,10 +20,7 @@ const signupSchema = z
   .object({
     token: z.string().min(1),
     name: z.string().trim().min(1, "Name is required").max(120),
-    password: z
-      .string()
-      .min(8, "Password must be at least 8 characters")
-      .max(200),
+    password: passwordSchema,
     confirmPassword: z.string(),
   })
   .refine((d) => d.password === d.confirmPassword, {

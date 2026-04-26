@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useRef } from "react"
+import { useActionState, useEffect, useRef, useState } from "react"
 import { Loader2 } from "lucide-react"
 
 import {
@@ -8,6 +8,7 @@ import {
   updateProfile,
   type AccountState,
 } from "@/app/(app)/settings/account/actions"
+import { PasswordRequirements } from "@/components/password-requirements"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -23,6 +24,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { PASSWORD_MIN_LENGTH } from "@/lib/auth/password-policy"
 
 const initial: AccountState = { error: null, success: null, fieldErrors: {} }
 
@@ -49,10 +51,12 @@ export function AccountForms({
     initial,
   )
   const pwFormRef = useRef<HTMLFormElement>(null)
+  const [newPassword, setNewPassword] = useState("")
 
   useEffect(() => {
     if (pwState.success && pwFormRef.current) {
       pwFormRef.current.reset()
+      setNewPassword("")
     }
   }, [pwState.success])
 
@@ -143,8 +147,11 @@ export function AccountForms({
                   type="password"
                   autoComplete="new-password"
                   required
-                  minLength={8}
+                  minLength={PASSWORD_MIN_LENGTH}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
                 />
+                <PasswordRequirements value={newPassword} />
                 <FieldError errors={pwState.fieldErrors.newPassword} />
               </Field>
               <Field>
@@ -157,7 +164,7 @@ export function AccountForms({
                   type="password"
                   autoComplete="new-password"
                   required
-                  minLength={8}
+                  minLength={PASSWORD_MIN_LENGTH}
                 />
                 <FieldError errors={pwState.fieldErrors.confirmPassword} />
               </Field>
