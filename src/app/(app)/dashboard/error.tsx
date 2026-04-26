@@ -2,22 +2,19 @@
 
 import { RouteError } from "@/components/route-error";
 
-export default function RootError({
+export default function DashboardError({
   error,
   unstable_retry,
 }: {
   error: Error & { digest?: string };
   unstable_retry: () => void;
 }) {
-  // Root boundary catches anything that escapes the app shell — no
-  // dashboard link because we may be on a route the user isn't
-  // logged in to.
   return (
     <RouteError
       error={error}
       retry={unstable_retry}
-      title="Something went wrong"
-      description="An unexpected error occurred. Please try again."
+      title="Couldn't load the dashboard"
+      description="We hit an error pulling your sustainability snapshot. Try again, or jump to a specific module from the sidebar."
       showDashboardLink={false}
     />
   );
