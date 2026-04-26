@@ -47,15 +47,33 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Reject debug routes
+        # No file should land under api/health|debug|dev. These are
+        # historically the home for one-off diagnostic endpoints (the
+        # 2026-04 /api/health/email leak was the prompt for this guard).
+        # Webhook + business routes live elsewhere — this glob never
+        # matches legitimate code.
+        run: |
+          set -e
+          matches=$(find src/app/api -type d \( -name health -o -name debug -o -name dev \) 2>/dev/null || true)
+          if [ -n "$matches" ]; then
+            echo "::error::Debug route directory present:"
+            echo "$matches"
+            echo "Diagnostic endpoints are not allowed in committed code. Use a feature flag or remove."
+            exit 1
+          fi
+
   build:
-    # Build verification placeholder. Not currently gating because Next
-    # build requires secrets we haven't provisioned yet (see
-    # Execution_Plan.md §P0). Flip `if: false` to `if: true` after P0
-    # env provisioning.
-    name: Build (non-blocking)
+    name: Build
     runs-on: ubuntu-latest
-    if: false
     timeout-minutes: 10
+    env:
+      # Build doesn't connect to a DB but Prisma + a few server modules
+      # read these envs at build time. Placeholders are safe — we never
+      # ship the build artifact with these values; Railway injects real
+      # values at runtime.
+      DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+      SESSION_SECRET: ci-placeholder-session-secret-min-32-chars-long
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
