@@ -14,6 +14,7 @@ import {
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { setActiveCompany } from "@/lib/session";
+import { appOrigin } from "@/lib/url";
 
 export type AdminCreateCompanyState = {
   error: string | null;
@@ -145,13 +146,7 @@ export async function createCompanyAndInviteOwner(
     ownerEmail: parsed.data.ownerEmail,
   });
 
-  const origin =
-    process.env.PUBLIC_APP_URL ??
-    process.env.RAILWAY_PUBLIC_DOMAIN_URL ??
-    "";
-  const inviteUrl = origin
-    ? `${origin.replace(/\/$/, "")}/signup?token=${token}`
-    : `/signup?token=${token}`;
+  const inviteUrl = `${appOrigin()}/signup?token=${token}`;
 
   revalidatePath("/admin");
   return { error: null, fieldErrors: {}, inviteUrl };

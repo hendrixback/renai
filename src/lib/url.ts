@@ -25,3 +25,26 @@ export function serializeSearchParams(
   }
   return out.toString();
 }
+
+/**
+ * Returns the absolute origin for outbound URLs (invitation links,
+ * task-assigned emails, webhook callbacks, etc.).
+ *
+ * Resolution order:
+ *   1. `PUBLIC_APP_URL` — explicit override, used in staging/prod.
+ *   2. `RAILWAY_PUBLIC_DOMAIN_URL` — provided automatically by Railway.
+ *   3. In non-production only: `http://localhost:3000`.
+ *   4. In production with neither set: throws — better to crash loud at
+ *      first send than to ship customers an email full of broken links.
+ *
+ * Always returns a value with no trailing slash so callers can do
+ * `${appOrigin()}/path`.
+ */
+export function appOrigin(): string {
+  const raw = process.env.PUBLIC_APP_URL ?? process.env.RAILWAY_PUBLIC_DOMAIN_URL;
+  if (raw && raw.length > 0) return raw.replace(/\/$/, "");
+  if (process.env.NODE_ENV !== "production") return "http://localhost:3000";
+  throw new Error(
+    "appOrigin(): neither PUBLIC_APP_URL nor RAILWAY_PUBLIC_DOMAIN_URL is set in production. Refusing to emit broken-link URLs.",
+  );
+}

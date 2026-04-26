@@ -88,8 +88,21 @@ async function seedCatalog() {
 }
 
 async function seedAdminAndCompany() {
-  const email = "admin@renai.local";
-  const password = "admin12345";
+  // Defense-in-depth: this seed is dev-only by design (the production
+  // Dockerfile only runs `prisma migrate deploy`, not `db:seed`). If
+  // someone wires it into a prod task by mistake, fail loudly rather
+  // than create a known-credential admin in customer infra.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "seedAdminAndCompany() refuses to run in NODE_ENV=production. This script is dev-only.",
+    );
+  }
+
+  const email = process.env.SEED_ADMIN_EMAIL ?? "admin@renai.local";
+  const password = process.env.SEED_ADMIN_PASSWORD ?? "admin12345";
+  const passwordSource = process.env.SEED_ADMIN_PASSWORD
+    ? "env (SEED_ADMIN_PASSWORD)"
+    : "default";
   const companySlug = "renai-demo";
 
   const user = await prisma.user.upsert({
@@ -138,7 +151,10 @@ async function seedAdminAndCompany() {
     });
   }
 
-  console.log(`✓ Admin: ${email} / ${password}`);
+  // Never echo the password — credentials in CI logs are an audit
+  // finding waiting to happen. Devs who rely on the default know it's
+  // documented in this file; everyone else sets SEED_ADMIN_PASSWORD.
+  console.log(`✓ Admin user: ${email} (password source: ${passwordSource})`);
   console.log(`✓ Company: ${company.name} (${company.slug})`);
 }
 

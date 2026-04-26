@@ -13,6 +13,7 @@ import {
 } from "@/lib/invitations";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { appOrigin } from "@/lib/url";
 
 export type TeamState = {
   error: string | null;
@@ -135,13 +136,7 @@ export async function inviteTeammate(
     metadata: { email: invitation.email, role: invitation.role },
   });
 
-  const origin =
-    process.env.PUBLIC_APP_URL ??
-    process.env.RAILWAY_PUBLIC_DOMAIN_URL ??
-    "";
-  const inviteUrl = origin
-    ? `${origin.replace(/\/$/, "")}/signup?token=${token}`
-    : `/signup?token=${token}`;
+  const inviteUrl = `${appOrigin()}/signup?token=${token}`;
 
   // Best-effort send. The invite-URL is also returned in the action
   // result so the admin can copy/paste it manually if email delivery

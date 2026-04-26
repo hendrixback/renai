@@ -15,14 +15,7 @@ import {
   TASK_STATUS_VALUES,
   type TaskPriorityValue,
 } from "@/lib/tasks";
-
-function appOrigin(): string {
-  return (
-    process.env.PUBLIC_APP_URL ??
-    process.env.RAILWAY_PUBLIC_DOMAIN_URL ??
-    "http://localhost:3000"
-  ).replace(/\/$/, "");
-}
+import { appOrigin } from "@/lib/url";
 
 /**
  * Fire-and-forget task-assigned email. Looks up the assignee's email,
