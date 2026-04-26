@@ -29,7 +29,10 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Match Dockerfile (FROM node:24-alpine). npm 10 (Node 20)
+          # can't read lockfiles produced by npm 11 (Node 24); keep
+          # local + CI + prod on the same line so `npm ci` is reliable.
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -78,7 +81,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
       - run: npm ci --prefer-offline --no-audit
       - run: npx prisma generate
