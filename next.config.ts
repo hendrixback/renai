@@ -1,4 +1,10 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+
+// next-intl plugin: tells the framework where the request-config file
+// lives so server components can resolve messages without a per-route
+// import. Single-locale today; locale routing comes when we add pt-PT.
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
   // Produces a minimal server bundle under `.next/standalone/` so the Docker
@@ -17,4 +23,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

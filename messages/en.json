@@ -1,0 +1,34 @@
+{
+  "common": {
+    "loading": "Loading…",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "create": "Create",
+    "back": "Back"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "wasteFlows": "Waste Flows",
+    "carbonFootprint": "Carbon Footprint",
+    "analysis": "Analysis",
+    "documentation": "Documentation",
+    "teamOverview": "Team Overview",
+    "tasks": "Tasks",
+    "regulations": "Regulations",
+    "settings": "Settings",
+    "platformAdmin": "Platform Admin"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "signUp": "Sign up",
+    "email": "Email",
+    "password": "Password"
+  }
+}

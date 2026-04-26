@@ -13,6 +13,7 @@ import {
   ShieldIcon,
   UsersIcon,
 } from "lucide-react"
+import { useTranslations } from "next-intl"
 
 import { CompanySwitcher } from "@/components/company-switcher"
 import { NavMain, type NavItem } from "@/components/nav-main"
@@ -61,30 +62,33 @@ export type SidebarFlagSet = {
   regulationsEnabled: boolean
 }
 
-function buildNavItems(flagSet: SidebarFlagSet): NavItem[] {
+function buildNavItems(
+  flagSet: SidebarFlagSet,
+  t: ReturnType<typeof useTranslations<"nav">>,
+): NavItem[] {
   const items: NavItem[] = [
-    { title: "Dashboard", url: "/dashboard", icon: <LayoutDashboardIcon /> },
-    { title: "Waste Flows", url: "/waste-flows", icon: <RecycleIcon /> },
+    { title: t("dashboard"), url: "/dashboard", icon: <LayoutDashboardIcon /> },
+    { title: t("wasteFlows"), url: "/waste-flows", icon: <RecycleIcon /> },
     {
-      title: "Carbon Footprint",
+      title: t("carbonFootprint"),
       url: "/carbon-footprint",
       icon: <LeafIcon />,
     },
-    { title: "Analysis", url: "/analysis", icon: <BarChart3Icon /> },
-    { title: "Documentation", url: "/documentation", icon: <FileTextIcon /> },
-    { title: "Team Overview", url: "/team-overview", icon: <UsersIcon /> },
-    { title: "Tasks", url: "/tasks", icon: <ListChecksIcon /> },
+    { title: t("analysis"), url: "/analysis", icon: <BarChart3Icon /> },
+    { title: t("documentation"), url: "/documentation", icon: <FileTextIcon /> },
+    { title: t("teamOverview"), url: "/team-overview", icon: <UsersIcon /> },
+    { title: t("tasks"), url: "/tasks", icon: <ListChecksIcon /> },
   ]
 
   if (flagSet.regulationsEnabled) {
     items.push({
-      title: "Regulations",
+      title: t("regulations"),
       url: "/regulations",
       icon: <BookOpenIcon />,
     })
   }
 
-  items.push({ title: "Settings", url: "/settings", icon: <SettingsIcon /> })
+  items.push({ title: t("settings"), url: "/settings", icon: <SettingsIcon /> })
   return items
 }
 
@@ -103,9 +107,10 @@ export function AppSidebar({
   flagSet: SidebarFlagSet
 } & React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+  const t = useTranslations("nav")
   const showAdminLink = user.role === "ADMIN"
   const adminActive = pathname.startsWith("/admin")
-  const navMain = React.useMemo(() => buildNavItems(flagSet), [flagSet])
+  const navMain = React.useMemo(() => buildNavItems(flagSet, t), [flagSet, t])
 
   // When impersonating, show the active company in the switcher list too so
   // the user can see and exit — the "exit" button in the impersonation
@@ -138,12 +143,12 @@ export function AppSidebar({
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  tooltip="Platform Admin"
+                  tooltip={t("platformAdmin")}
                   isActive={adminActive}
                   render={<Link href="/admin" />}
                 >
                   <ShieldIcon />
-                  <span>Platform Admin</span>
+                  <span>{t("platformAdmin")}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
