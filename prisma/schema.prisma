@@ -48,6 +48,9 @@ model User {
   importedFactorRevisions   FactorRevision[]   @relation("FactorRevisionImporter")
   assignedTasks             Task[]             @relation("TaskAssignedTo")
   createdTasks              Task[]             @relation("TaskAssignedBy")
+  createdRegulations        Regulation[]       @relation("RegulationCreatedBy")
+  updatedRegulations        Regulation[]       @relation("RegulationUpdatedBy")
+  reviewedRegulations       Regulation[]       @relation("RegulationReviewedBy")
 
   @@index([role])
   @@index([lastActiveAt])
@@ -82,6 +85,7 @@ model Company {
   activityLogs       ActivityLog[]
   factorRevisions    FactorRevision[]
   tasks              Task[]
+  regulations        Regulation[]
   emailEvents        EmailEvent[]
 }
 
@@ -838,4 +842,110 @@ enum DocumentType {
   PRODUCTION_REPORT
   REGULATORY_FILE
   OTHER
+}
+
+// ─── Regulations (Spec §16) ─────────────────────────────────────
+
+/// Regulatory entries — per-tenant register of EU + national rules
+/// the company tracks. Admin-only CRUD per Spec_Amendments §A5
+/// (no AI-generated content in MVP). Records are linked to documents
+/// via the polymorphic DocumentLink table (module="regulation").
+///
+/// Tenant-scoped because each customer curates the list of rules
+/// relevant to *their* operations. Two textile companies in PT will
+/// share most entries but a chemical plant in DE wouldn't see them.
+model Regulation {
+  id               String             @id @default(cuid())
+  companyId        String
+  /// Spec §16.6 — short human title.
+  title            String
+  /// Spec §16.6, §16.7.
+  type             RegulationType
+  /// Spec §16.6 — free-text geography label ("EU", "PT", "PT-Norte",
+  /// country code, region). Kept as VARCHAR rather than an enum so
+  /// new jurisdictions don't require schema changes.
+  geography        String             @db.VarChar(40)
+  /// Spec §16.6, §16.8.
+  topic            RegulationTopic
+  /// Spec §16.6 — plain-English summary, displayed on detail page.
+  summary          String
+  /// Spec §16.6 — URL or citation (CELEX number, OJ reference, etc.).
+  sourceReference  String?
+  /// Spec §16.6 — when the rule entered (or will enter) into force.
+  effectiveDate    DateTime?
+  /// Spec §16.6 — regulatory state (separate from `recordStatus`,
+  /// which is the entity lifecycle for our register row).
+  regulatoryStatus RegulationStatus   @default(IN_FORCE)
+  /// Spec §16.6 — Admin's call: does this rule apply to us?
+  appliesToUs      Boolean            @default(false)
+  /// Spec §16.6.
+  priorityLevel    RegulationPriority @default(MEDIUM)
+  /// Spec §16.6 — internal commentary, not customer-facing.
+  internalNotes    String?
+  /// Spec §16.6 — User who last reviewed this entry.
+  reviewedById     String?
+  reviewDate       DateTime?
+  recordStatus     RecordStatus       @default(ACTIVE) // entity lifecycle
+  createdById      String?
+  updatedById      String?
+  deletedAt        DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy  User?   @relation("RegulationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy  User?   @relation("RegulationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  reviewedBy User?   @relation("RegulationReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([companyId, geography])
+  @@index([companyId, topic])
+  @@index([companyId, regulatoryStatus])
+  @@index([companyId, appliesToUs])
+  @@index([companyId, effectiveDate])
+  @@index([companyId, recordStatus])
+  @@index([deletedAt])
+}
+
+enum RegulationType {
+  EU_REGULATION
+  EU_DIRECTIVE
+  NATIONAL_LAW
+  NATIONAL_DECREE
+  GUIDANCE
+  REPORTING_STANDARD
+  REGULATORY_UPDATE
+  INTERNAL_COMPLIANCE_NOTE
+  OTHER
+}
+
+enum RegulationTopic {
+  WASTE_MANAGEMENT
+  CARBON_FOOTPRINT
+  GHG_REPORTING
+  ESG_REPORTING
+  ENERGY
+  HAZARDOUS_WASTE
+  ENVIRONMENTAL_LICENSING
+  AUDIT_AND_DOCUMENTATION
+  INDUSTRIAL_COMPLIANCE
+  OTHER
+}
+
+/// Regulatory state of the rule itself (separate from RecordStatus,
+/// which tracks the lifecycle of *our register entry* — drafts,
+/// archives). A regulation can be PROPOSED but our entry can be
+/// ACTIVE in the register.
+enum RegulationStatus {
+  PROPOSED
+  IN_FORCE
+  SUPERSEDED
+  REPEALED
+}
+
+enum RegulationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
 }
