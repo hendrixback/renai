@@ -69,6 +69,8 @@ export default async function EditFuelEntryPage({
 
   const initial: FuelEntryInitial = {
     id: entry.id,
+    title: entry.title,
+    sourceReference: entry.sourceReference,
     fuelType: entry.fuelType,
     emissionSourceType: entry.emissionSourceType,
     unit: entry.unit,

@@ -21,6 +21,7 @@ type Site = { id: string; name: string }
 
 type Entry = {
   id: string
+  title: string | null
   fuelType: string
   quantity: string
   unit: string
@@ -129,6 +130,7 @@ export function FuelPanel({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Title</TableHead>
                   <TableHead>Month</TableHead>
                   <TableHead>Fuel</TableHead>
                   <TableHead className="text-right">Quantity</TableHead>
@@ -142,6 +144,18 @@ export function FuelPanel({
               <TableBody>
                 {entries.map((e) => (
                   <TableRow key={e.id}>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/carbon-footprint/fuel/${e.id}`}
+                        className="hover:underline"
+                      >
+                        {e.title ?? (
+                          <span className="text-muted-foreground italic">
+                            (untitled)
+                          </span>
+                        )}
+                      </Link>
+                    </TableCell>
                     <TableCell className="text-sm">
                       <Link
                         href={`/carbon-footprint/fuel/${e.id}`}
@@ -153,13 +167,8 @@ export function FuelPanel({
                         })}
                       </Link>
                     </TableCell>
-                    <TableCell className="font-medium">
-                      <Link
-                        href={`/carbon-footprint/fuel/${e.id}`}
-                        className="hover:underline"
-                      >
-                        {fuelLabel(e.fuelType)}
-                      </Link>
+                    <TableCell className="text-sm">
+                      {fuelLabel(e.fuelType)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm tabular-nums">
                       {Number(e.quantity).toLocaleString(undefined, {

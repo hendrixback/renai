@@ -223,6 +223,16 @@ model FuelEntry {
   id                 String              @id @default(cuid())
   companyId          String
   siteId             String?
+  /// Spec §10.3.1: human-friendly entry title. Required for new
+  /// records (server-side Zod) but nullable in DB so historical rows
+  /// pre-dating this column don't break — those render as "(untitled
+  /// entry)" in the UI. A future backfill + NOT NULL migration can
+  /// follow once all customer rows have one.
+  title              String?
+  /// Spec §10.3.2: invoice number, meter reading reference, supplier
+  /// receipt — anything that lets an auditor trace the activity data
+  /// back to its source document. Always optional.
+  sourceReference    String?
   fuelType           String // matches EmissionFactor.subtype: "diesel", "petrol", "natural_gas", ...
   emissionSourceType EmissionSourceType? // Spec §10.4: stationary, mobile, boiler, generator…
   quantity           Decimal             @db.Decimal(14, 3)

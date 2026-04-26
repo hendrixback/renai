@@ -77,6 +77,7 @@ export default async function FuelPage({
       hasActiveFilters={hasActiveFilters}
       entries={entries.map((e) => ({
         id: e.id,
+        title: e.title,
         fuelType: e.fuelType,
         quantity: e.quantity.toString(),
         unit: e.unit,

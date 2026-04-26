@@ -97,6 +97,15 @@ const EMISSION_SOURCE_TYPE_VALUES = [
 ] as const;
 
 const fuelSchema = z.object({
+  // Spec §10.3.1: human-friendly title required for new entries.
+  // Schema column is nullable for backward-compat with pre-policy rows.
+  title: z.string().trim().min(1, "Entry title is required").max(200),
+  // Spec §10.3.2: invoice id, meter reading id, supplier reference —
+  // anything that lets an auditor trace the activity data back.
+  sourceReference: z.preprocess(
+    emptyToUndef,
+    z.string().trim().max(200).optional(),
+  ),
   fuelType: z.string().trim().min(1, "Fuel type is required"),
   emissionSourceType: z.preprocess(
     emptyToUndef,
@@ -181,6 +190,8 @@ export async function registerFuelEntry(
       createdById: ctx.user.id,
       updatedById: ctx.user.id,
       siteId: parsed.data.siteId ?? null,
+      title: parsed.data.title,
+      sourceReference: parsed.data.sourceReference ?? null,
       fuelType: parsed.data.fuelType,
       emissionSourceType: parsed.data.emissionSourceType ?? null,
       unit: parsed.data.unit,
@@ -194,14 +205,14 @@ export async function registerFuelEntry(
       kgCo2e: emission.kgCo2e,
       notes: parsed.data.notes ?? null,
     },
-    select: { id: true, fuelType: true, quantity: true, unit: true },
+    select: { id: true, title: true, fuelType: true, quantity: true, unit: true },
   });
 
   await logActivity(ctx, {
     type: "RECORD_CREATED",
     module: "scope-1",
     recordId: entry.id,
-    description: `Registered ${entry.quantity} ${entry.unit} of ${entry.fuelType} (${emission.kgCo2e.toFixed(1)} kgCO₂e)`,
+    description: `Registered "${entry.title}" — ${entry.quantity} ${entry.unit} of ${entry.fuelType} (${emission.kgCo2e.toFixed(1)} kgCO₂e)`,
     metadata: {
       fuelType: entry.fuelType,
       reportingYear: month.year,
@@ -299,6 +310,8 @@ export async function updateFuelEntry(
     data: {
       updatedById: ctx.user.id,
       siteId: parsed.data.siteId ?? null,
+      title: parsed.data.title,
+      sourceReference: parsed.data.sourceReference ?? null,
       fuelType: parsed.data.fuelType,
       emissionSourceType: parsed.data.emissionSourceType ?? null,
       unit: parsed.data.unit,

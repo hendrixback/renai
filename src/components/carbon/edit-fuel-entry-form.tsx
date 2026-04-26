@@ -26,6 +26,10 @@ type Site = { id: string; name: string };
 
 export type FuelEntryInitial = {
   id: string;
+  /** Spec §10.3.1. Pre-policy rows may have null — render as empty in the form. */
+  title: string | null;
+  /** Spec §10.3.2. */
+  sourceReference: string | null;
   fuelType: string;
   emissionSourceType: string | null;
   unit: string;
@@ -62,6 +66,10 @@ export function EditFuelEntryForm({
   const [state, setState] = useState<SimpleState>(emptyState);
   const [pending, startTransition] = useTransition();
 
+  const [title, setTitle] = useState(entry.title ?? "");
+  const [sourceReference, setSourceReference] = useState(
+    entry.sourceReference ?? "",
+  );
   const [fuelType, setFuelType] = useState(entry.fuelType);
   const [emissionSourceType, setEmissionSourceType] = useState(
     entry.emissionSourceType ?? "",
@@ -83,6 +91,8 @@ export function EditFuelEntryForm({
   function handleSubmit() {
     startTransition(async () => {
       const result = await updateFuelEntry(entry.id, {
+        title,
+        sourceReference,
         fuelType,
         emissionSourceType,
         unit,
@@ -110,6 +120,18 @@ export function EditFuelEntryForm({
       </CardHeader>
       <CardContent>
         <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="title">Entry title</FieldLabel>
+            <Input
+              id="title"
+              placeholder="e.g. Lisbon Plant — Diesel — Mar 2026"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={200}
+            />
+            <FieldError errors={state.fieldErrors.title} />
+          </Field>
+
           <div className="grid gap-3 md:grid-cols-2">
             <Field>
               <FieldLabel htmlFor="fuelType">Fuel Type</FieldLabel>
@@ -251,6 +273,20 @@ export function EditFuelEntryForm({
               />
             </Field>
           </div>
+
+          <Field>
+            <FieldLabel htmlFor="sourceReference">
+              Source reference (optional)
+            </FieldLabel>
+            <Input
+              id="sourceReference"
+              placeholder="Invoice #, meter reading id, supplier ref…"
+              value={sourceReference}
+              onChange={(e) => setSourceReference(e.target.value)}
+              maxLength={200}
+            />
+            <FieldError errors={state.fieldErrors.sourceReference} />
+          </Field>
 
           {state.success ? (
             <p className="text-sm text-emerald-600 dark:text-emerald-400">

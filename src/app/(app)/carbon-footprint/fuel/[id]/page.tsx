@@ -110,7 +110,7 @@ export default async function FuelEntryDetailPage({
   return (
     <>
       <PageHeader
-        title={`Scope 1 entry — ${FUEL_TYPE_LABELS[entry.fuelType] ?? entry.fuelType}`}
+        title={entry.title ?? `Scope 1 entry — ${FUEL_TYPE_LABELS[entry.fuelType] ?? entry.fuelType}`}
         breadcrumbs={[
           { label: "Carbon Footprint", href: "/carbon-footprint" },
           { label: "Scope 1 — Fuel", href: "/carbon-footprint/fuel" },
@@ -186,6 +186,12 @@ export default async function FuelEntryDetailPage({
           </CardHeader>
           <CardContent>
             <dl className="flex flex-col">
+              <DetailRow label="Entry title">
+                {entry.title ?? <Empty />}
+              </DetailRow>
+              <DetailRow label="Source reference">
+                {entry.sourceReference ?? <Empty />}
+              </DetailRow>
               <DetailRow label="Fuel type">
                 {FUEL_TYPE_LABELS[entry.fuelType] ?? entry.fuelType}
               </DetailRow>

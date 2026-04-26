@@ -57,6 +57,8 @@ export function RegisterFuelDialog({
   const [state, setState] = useState<SimpleState>(emptyState)
   const [pending, startTransition] = useTransition()
 
+  const [title, setTitle] = useState("")
+  const [sourceReference, setSourceReference] = useState("")
   const [fuelType, setFuelType] = useState("diesel")
   const [emissionSourceType, setEmissionSourceType] = useState("")
   const [unit, setUnit] = useState("L")
@@ -68,6 +70,8 @@ export function RegisterFuelDialog({
   const [notes, setNotes] = useState("")
 
   function resetForm() {
+    setTitle("")
+    setSourceReference("")
     setFuelType("diesel")
     setEmissionSourceType("")
     setUnit("L")
@@ -89,6 +93,8 @@ export function RegisterFuelDialog({
   function handleSubmit() {
     startTransition(async () => {
       const result = await registerFuelEntry({
+        title,
+        sourceReference,
         fuelType,
         emissionSourceType,
         unit,
@@ -131,6 +137,18 @@ export function RegisterFuelDialog({
         </DialogHeader>
 
         <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="title">Entry title</FieldLabel>
+            <Input
+              id="title"
+              placeholder="e.g. Lisbon Plant — Diesel — Mar 2026"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={200}
+            />
+            <FieldError errors={state.fieldErrors.title} />
+          </Field>
+
           <div className="grid gap-3 md:grid-cols-2">
             <Field>
               <FieldLabel htmlFor="fuelType">Fuel Type</FieldLabel>
@@ -274,6 +292,20 @@ export function RegisterFuelDialog({
               />
             </Field>
           </div>
+
+          <Field>
+            <FieldLabel htmlFor="sourceReference">
+              Source reference (optional)
+            </FieldLabel>
+            <Input
+              id="sourceReference"
+              placeholder="Invoice #, meter reading id, supplier ref…"
+              value={sourceReference}
+              onChange={(e) => setSourceReference(e.target.value)}
+              maxLength={200}
+            />
+            <FieldError errors={state.fieldErrors.sourceReference} />
+          </Field>
 
           {state.success ? (
             <p className="text-sm text-emerald-600 dark:text-emerald-400">

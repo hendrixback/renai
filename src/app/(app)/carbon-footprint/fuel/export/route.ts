@@ -43,6 +43,8 @@ export async function GET(request: NextRequest) {
       orderBy: { month: "desc" },
       select: {
         id: true,
+        title: true,
+        sourceReference: true,
         fuelType: true,
         emissionSourceType: true,
         quantity: true,
@@ -65,6 +67,7 @@ export async function GET(request: NextRequest) {
 
   type Row = (typeof entries)[number];
   const columns: ExportColumn<Row>[] = [
+    { key: "title", header: "Title", width: 28, value: (r) => r.title },
     { key: "month", header: "Month", width: 10, type: "date", value: (r) => r.month },
     { key: "fuelType", header: "Fuel Type", width: 16, value: (r) => r.fuelType },
     {
@@ -72,6 +75,12 @@ export async function GET(request: NextRequest) {
       header: "Source Type",
       width: 20,
       value: (r) => r.emissionSourceType,
+    },
+    {
+      key: "sourceReference",
+      header: "Source Reference",
+      width: 22,
+      value: (r) => r.sourceReference,
     },
     {
       key: "quantity",
