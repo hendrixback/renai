@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { AppSidebar } from "@/components/app-sidebar";
+import { AssistantLauncher } from "@/components/ai-assistant/assistant-launcher";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { getCurrentContext, getCurrentUser } from "@/lib/auth";
@@ -65,6 +66,8 @@ export default async function AppLayout({
         ) : null}
         {children}
       </SidebarInset>
+      {/* AI assistant — renders nothing when AI_API_KEY/AI_MODEL unset. */}
+      <AssistantLauncher />
     </SidebarProvider>
   );
 }

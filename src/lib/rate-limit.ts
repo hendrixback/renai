@@ -123,6 +123,14 @@ export function __resetForTests(): void {
  * is reviewable in one place.
  */
 export const limiters = Object.freeze({
+  /** AI chat messages. 30 per user per hour. Free-tier providers
+   *  (OpenRouter, Groq) have their own per-key rate limits; this is a
+   *  per-user fairness gate that runs first. */
+  aiChat: {
+    name: "ai-chat",
+    limit: 30,
+    windowMs: 60 * 60 * 1000,
+  },
   /** Login attempts. 5 per IP per 15 min. */
   login: {
     name: "login",
