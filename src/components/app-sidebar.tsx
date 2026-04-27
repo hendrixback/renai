@@ -11,6 +11,7 @@ import {
   RecycleIcon,
   SettingsIcon,
   ShieldIcon,
+  UploadIcon,
   UsersIcon,
 } from "lucide-react"
 import { useTranslations } from "next-intl"
@@ -67,6 +68,7 @@ function buildNavItems(
     { title: t("regulations"), url: "/regulations", icon: <BookOpenIcon /> },
     { title: t("teamOverview"), url: "/team-overview", icon: <UsersIcon /> },
     { title: t("tasks"), url: "/tasks", icon: <ListChecksIcon /> },
+    { title: t("imports"), url: "/imports", icon: <UploadIcon /> },
     { title: t("settings"), url: "/settings", icon: <SettingsIcon /> },
   ]
 }

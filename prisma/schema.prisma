@@ -51,6 +51,7 @@ model User {
   createdRegulations        Regulation[]       @relation("RegulationCreatedBy")
   updatedRegulations        Regulation[]       @relation("RegulationUpdatedBy")
   reviewedRegulations       Regulation[]       @relation("RegulationReviewedBy")
+  uploadedImports           ImportSession[]    @relation("ImportSessionUploadedBy")
 
   @@index([role])
   @@index([lastActiveAt])
@@ -87,6 +88,7 @@ model Company {
   tasks              Task[]
   regulations        Regulation[]
   emailEvents        EmailEvent[]
+  importSessions     ImportSession[]
 }
 
 model Invitation {
@@ -948,4 +950,74 @@ enum RegulationPriority {
   MEDIUM
   HIGH
   CRITICAL
+}
+
+// ─── Imports (Spec §20) ─────────────────────────────────────────
+
+/// CSV / XLSX import sessions. The user uploads a file, picks a target
+/// module, maps columns to canonical fields, validates row-by-row,
+/// previews, and commits. The session row tracks the whole workflow
+/// + its outcome so retries / audits / resume-on-refresh all work.
+///
+/// The uploaded file lives in the existing storage layer (Volume
+/// today, R2 future per ADR-001). A failed or abandoned session keeps
+/// the row + the file for ~30 days for re-validation; a periodic
+/// cleanup job will prune the long tail (not in MVP).
+model ImportSession {
+  id            String              @id @default(cuid())
+  companyId     String
+  uploadedById  String?
+  /// Which target module this import populates. Mirrors the Document
+  /// linkModule string convention (e.g. "waste-flows", "scope-1").
+  module        String
+  /// Original filename the user uploaded — for the UI.
+  filename      String
+  /// Where the file is stored (Volume key today). Same path scheme
+  /// as Document.storageKey for tenant-prefixed isolation.
+  storageKey    String
+  fileSize      Int
+  mimeType      String
+  status        ImportSessionStatus @default(UPLOADED)
+  /// Discovered headers from the first row (for header-mapping UI).
+  headers       String[]            @default([])
+  /// User-confirmed mapping: canonical field → header name from the
+  /// uploaded file. Persisted so a refreshed page picks up where the
+  /// user left off.
+  columnMap     Json?
+  totalRows     Int                 @default(0)
+  validRows     Int                 @default(0)
+  errorRows     Int                 @default(0)
+  /// Validation errors at the row+field level. Shape:
+  /// [{ row: number, column?: string, message: string }, …]
+  errorReport   Json?
+  committedRows Int                 @default(0)
+  /// First fatal error (if any) — surfaced verbatim in the UI.
+  errorMessage  String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  uploadedBy User?   @relation("ImportSessionUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status])
+  @@index([companyId, module])
+  @@index([companyId, createdAt])
+  @@index([uploadedById])
+}
+
+enum ImportSessionStatus {
+  /// File uploaded; not yet parsed.
+  UPLOADED
+  /// Headers + raw rows parsed; awaiting user column-map confirmation.
+  PARSED
+  /// Map confirmed; rows validated against the per-module schema.
+  VALIDATED
+  /// Commit in progress.
+  COMMITTING
+  /// All valid rows committed. Row counts on the session are final.
+  COMMITTED
+  /// Unrecoverable error during parse / validate / commit.
+  FAILED
+  /// User abandoned without committing — file may still be in storage.
+  CANCELLED
 }
