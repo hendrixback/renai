@@ -24,10 +24,40 @@ export async function register() {
   }
 }
 
+import { captureRequestError } from "@sentry/nextjs";
+import type { Instrumentation } from "next";
+
 /**
- * Forward server-side request errors to Sentry. Next 16 calls this for
- * every uncaught Server Component / Route Handler / Server Action
- * error. Re-exported from `@sentry/nextjs` so the SDK's own context
- * enrichment runs unchanged.
+ * Forward server-side request errors to Sentry **and** Railway stdout.
+ *
+ * Next 16 calls `onRequestError` for every uncaught Server Component /
+ * Route Handler / Server Action error. Sentry's `captureRequestError`
+ * does the right thing when DSN is set (and is a safe no-op when
+ * unset). The structured-log emission to stdout is a belt-and-braces
+ * second sink so prod errors are never invisible — even before the
+ * Sentry env vars are wired in Railway.
  */
-export { captureRequestError as onRequestError } from "@sentry/nextjs";
+export const onRequestError: Instrumentation.onRequestError = async (
+  error,
+  request,
+  context,
+) => {
+  // Stdout — the only sink that's guaranteed to be queryable from
+  // Railway's log dashboard regardless of observability config.
+  const err = error as { message?: string; stack?: string; digest?: string };
+  console.error(
+    "[onRequestError]",
+    JSON.stringify({
+      message: err.message ?? String(error),
+      digest: err.digest,
+      path: request.path,
+      method: request.method,
+      routePath: context.routePath,
+      routeType: context.routeType,
+      stack: err.stack?.split("\n").slice(0, 8).join("\n"),
+    }),
+  );
+
+  // Sentry (no-op when DSN unset).
+  return captureRequestError(error, request, context);
+};
