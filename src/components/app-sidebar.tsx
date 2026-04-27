@@ -50,23 +50,11 @@ type SidebarCompany = {
  * Canonical nav order per Spec §6.2:
  *   Dashboard → Waste Flows → Carbon Footprint → Analysis → Documentation
  *             → Regulations → Team Overview
- *
- * Regulations is the only flag-gated module today (work in progress).
- * Flag values come in as props from the server-rendered layout — this
- * avoids dev-mode hydration mismatches that occur when a client
- * component reads `flags.*` directly while the server reads it at
- * runtime (Turbopack inlines client-side, Node reads server-side,
- * and the two can disagree mid-HMR).
  */
-export type SidebarFlagSet = {
-  regulationsEnabled: boolean
-}
-
 function buildNavItems(
-  flagSet: SidebarFlagSet,
   t: ReturnType<typeof useTranslations<"nav">>,
 ): NavItem[] {
-  const items: NavItem[] = [
+  return [
     { title: t("dashboard"), url: "/dashboard", icon: <LayoutDashboardIcon /> },
     { title: t("wasteFlows"), url: "/waste-flows", icon: <RecycleIcon /> },
     {
@@ -76,20 +64,11 @@ function buildNavItems(
     },
     { title: t("analysis"), url: "/analysis", icon: <BarChart3Icon /> },
     { title: t("documentation"), url: "/documentation", icon: <FileTextIcon /> },
+    { title: t("regulations"), url: "/regulations", icon: <BookOpenIcon /> },
     { title: t("teamOverview"), url: "/team-overview", icon: <UsersIcon /> },
     { title: t("tasks"), url: "/tasks", icon: <ListChecksIcon /> },
+    { title: t("settings"), url: "/settings", icon: <SettingsIcon /> },
   ]
-
-  if (flagSet.regulationsEnabled) {
-    items.push({
-      title: t("regulations"),
-      url: "/regulations",
-      icon: <BookOpenIcon />,
-    })
-  }
-
-  items.push({ title: t("settings"), url: "/settings", icon: <SettingsIcon /> })
-  return items
 }
 
 export function AppSidebar({
@@ -97,20 +76,18 @@ export function AppSidebar({
   companies,
   activeCompany,
   isImpersonating,
-  flagSet,
   ...props
 }: {
   user: AppSidebarUser
   companies: SidebarCompany[]
   activeCompany: SidebarCompany
   isImpersonating: boolean
-  flagSet: SidebarFlagSet
 } & React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const t = useTranslations("nav")
   const showAdminLink = user.role === "ADMIN"
   const adminActive = pathname.startsWith("/admin")
-  const navMain = React.useMemo(() => buildNavItems(flagSet, t), [flagSet, t])
+  const navMain = React.useMemo(() => buildNavItems(t), [t])
 
   // When impersonating, show the active company in the switcher list too so
   // the user can see and exit — the "exit" button in the impersonation

@@ -1,8 +1,7 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 
 import { getCurrentContext } from "@/lib/auth";
 import { hasRole } from "@/lib/auth/require-role";
-import { flags } from "@/lib/flags";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { RegulationForm } from "@/components/regulations/regulation-form";
@@ -10,8 +9,6 @@ import { RegulationForm } from "@/components/regulations/regulation-form";
 export const dynamic = "force-dynamic";
 
 export default async function NewRegulationPage() {
-  if (!flags.regulationsEnabled) notFound();
-
   const ctx = await getCurrentContext();
   if (!ctx) redirect("/login?from=/regulations/new");
   if (!hasRole(ctx, "ADMIN")) redirect("/regulations");

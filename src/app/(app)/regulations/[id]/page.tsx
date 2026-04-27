@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/card";
 import { getCurrentContext } from "@/lib/auth";
 import { hasRole } from "@/lib/auth/require-role";
-import { flags } from "@/lib/flags";
 import { RegulationsService } from "@/lib/services/regulations";
 
 export const dynamic = "force-dynamic";
@@ -58,8 +57,6 @@ export default async function RegulationDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!flags.regulationsEnabled) notFound();
-
   const ctx = await getCurrentContext();
   if (!ctx) redirect("/login?from=/regulations");
 

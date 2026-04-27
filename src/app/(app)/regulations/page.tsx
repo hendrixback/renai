@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { BookOpenIcon, PlusIcon } from "lucide-react";
 
 import { getCurrentContext } from "@/lib/auth";
 import { hasRole } from "@/lib/auth/require-role";
-import { flags } from "@/lib/flags";
 import {
   REGULATION_PRIORITY_LABELS,
   REGULATION_STATUS_LABELS,
@@ -36,8 +35,6 @@ export default async function RegulationsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  if (!flags.regulationsEnabled) notFound();
-
   const ctx = await getCurrentContext();
   if (!ctx) redirect("/login?from=/regulations");
 
