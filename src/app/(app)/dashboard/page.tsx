@@ -24,7 +24,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
-import { InsightsAlerts } from "@/components/insights-alerts";
+import { generateInsights } from "@/lib/insights/engine";
+import { InsightsPanel } from "@/components/dashboard/insights-panel";
 import { CategoryBarChart } from "@/components/dashboard-category-chart";
 import { TreatmentDonutChart } from "@/components/dashboard-treatment-chart";
 import { DashboardRecentFlows } from "@/components/dashboard-recent-flows";
@@ -77,7 +78,7 @@ export default async function DashboardPage({
     getTaskSummary({ companyId: ctx.company.id }),
   ]);
 
-  const [data, carbon, activitiesRaw, sites, pef, tasksBundle] = await Promise.all([
+  const [data, carbon, activitiesRaw, sites, pef, tasksBundle, insights] = await Promise.all([
     getDashboardData(ctx.company.id, filter),
     getCarbonSummary(ctx.company.id, filter),
     prisma.activityLog.findMany({
@@ -93,6 +94,11 @@ export default async function DashboardPage({
     }),
     pefPromise,
     tasksPromise,
+    generateInsights({
+      companyId: ctx.company.id,
+      year: filter.year,
+      siteId: filter.siteId,
+    }),
   ]);
 
   const myActiveTasks = tasksBundle[0].filter(
@@ -100,7 +106,7 @@ export default async function DashboardPage({
   );
   const teamTaskSummary = tasksBundle[1];
 
-  const { kpi, byCategory, byTreatment, recentFlows, alerts, meta } = data;
+  const { kpi, byCategory, byTreatment, recentFlows, meta } = data;
   const activities: TeamActionEntry[] = activitiesRaw.map((a) => ({
     id: a.id,
     activityType: a.activityType,
@@ -351,8 +357,8 @@ export default async function DashboardPage({
           </Card>
         ) : null}
 
-        {/* Alerts */}
-        <InsightsAlerts alerts={alerts} />
+        {/* Insights (Spec §19.6 — rules-based, no LLM). */}
+        <InsightsPanel insights={insights} />
 
         {/* Open tasks widget — only when the Tasks module is on. */}
         <OpenTasksWidget
@@ -455,12 +461,10 @@ export default async function DashboardPage({
 function getMissingLow(
   data: Awaited<ReturnType<typeof getDashboardData>>,
 ): number {
-  return data.alerts
-    .filter((a) => a.message.includes("missing LoW"))
-    .reduce((n, a) => {
-      const m = a.message.match(/^(\d+)/);
-      return m ? n + Number(m[1]) : n;
-    }, 0);
+  // Total flows minus those with a category — proxy for "no LoW code"
+  // since category is set when a wasteCodeId is resolved. Used by the
+  // Compliance Snapshot widget below.
+  return Math.max(0, data.kpi.total - data.kpi.withCategory);
 }
 
 function SnapshotRow({

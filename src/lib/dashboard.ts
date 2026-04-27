@@ -135,42 +135,6 @@ export async function getDashboardData(
     });
   }
 
-  // Alerts (actionable data quality / compliance signals)
-  const alerts: Array<{
-    severity: "info" | "warning" | "critical";
-    message: string;
-  }> = [];
-
-  const missingCode = flows.filter((f) => !f.wasteCodeId).length;
-  if (missingCode > 0) {
-    alerts.push({
-      severity: "warning",
-      message: `${missingCode} waste flow${missingCode === 1 ? "" : "s"} missing LoW / EWC code`,
-    });
-  }
-  if (untreatedCount > 0) {
-    alerts.push({
-      severity: "warning",
-      message: `${untreatedCount} waste flow${untreatedCount === 1 ? "" : "s"} without a treatment pathway (R/D code)`,
-    });
-  }
-  const haznoCode = flows.filter(
-    (f) => f.isHazardous && !f.treatmentCode,
-  ).length;
-  if (haznoCode > 0) {
-    alerts.push({
-      severity: "critical",
-      message: `${haznoCode} hazardous flow${haznoCode === 1 ? "" : "s"} without treatment code — compliance risk`,
-    });
-  }
-  const noSite = flows.filter((f) => !f.siteId && !f.locationName).length;
-  if (noSite > 0) {
-    alerts.push({
-      severity: "info",
-      message: `${noSite} waste flow${noSite === 1 ? "" : "s"} without a site assigned`,
-    });
-  }
-
   // Data-completeness signals — fuel the expanded Compliance Snapshot
   // widget on the dashboard so operators can see where their dataset is
   // thinnest before reporting season.
@@ -221,7 +185,6 @@ export async function getDashboardData(
       categoryName: f.category?.name ?? null,
       wasteCodeDisplay: f.wasteCode?.displayCode ?? null,
     })),
-    alerts,
     meta: {
       siteCount,
     },
