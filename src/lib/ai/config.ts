@@ -40,14 +40,44 @@ export type AssistantConfig = {
 
 const DEFAULT_MAX_OUTPUT_TOKENS = 1024;
 
+/**
+ * Known baseURL per provider. When the user sets `AI_PROVIDER` but
+ * forgets `AI_BASE_URL`, we infer from this map. Saves one env var
+ * and prevents the silent-fallback-to-OpenAI bug that bites when the
+ * SDK's default kicks in for non-OpenAI keys.
+ */
+const PROVIDER_BASE_URLS: Record<string, string | undefined> = {
+  openai: undefined, // SDK default
+  openrouter: "https://openrouter.ai/api/v1",
+  groq: "https://api.groq.com/openai/v1",
+  anthropic: "https://api.anthropic.com/v1/",
+  gemini: "https://generativelanguage.googleapis.com/v1beta/openai",
+  ollama: "http://localhost:11434/v1",
+};
+
 export function readAssistantConfig(): AssistantConfig | null {
   const apiKey = (process.env.AI_API_KEY ?? "").trim();
   const model = (process.env.AI_MODEL ?? "").trim();
   if (!apiKey || !model) return null;
 
-  const baseURL = (process.env.AI_BASE_URL ?? "").trim() || undefined;
+  const explicitBaseURL = (process.env.AI_BASE_URL ?? "").trim() || undefined;
+  const explicitProvider = (process.env.AI_PROVIDER ?? "").trim() || undefined;
+
+  // Resolution order:
+  //   1. explicit AI_BASE_URL wins (it's the most specific signal)
+  //   2. else infer from AI_PROVIDER via the known map
+  //   3. else guess from key prefix (sk-or-* → OpenRouter etc.)
+  //   4. else fall through to SDK default (OpenAI)
+  let baseURL = explicitBaseURL;
+  if (!baseURL && explicitProvider) {
+    baseURL = PROVIDER_BASE_URLS[explicitProvider.toLowerCase()];
+  }
+  if (!baseURL) {
+    baseURL = inferBaseURLFromKey(apiKey);
+  }
+
   const provider =
-    (process.env.AI_PROVIDER ?? "").trim() || guessProvider(baseURL);
+    explicitProvider || guessProviderFromBaseURL(baseURL) || guessProviderFromKey(apiKey);
 
   const rawMax = Number(process.env.AI_MAX_OUTPUT_TOKENS);
   const maxOutputTokens =
@@ -58,14 +88,36 @@ export function readAssistantConfig(): AssistantConfig | null {
   return { apiKey, model, baseURL, provider, maxOutputTokens };
 }
 
-function guessProvider(baseURL: string | undefined): string {
-  if (!baseURL) return "openai";
+/**
+ * Heuristic: API keys carry signature prefixes per provider. Catches
+ * the common misconfiguration where a user pastes an OpenRouter key
+ * but forgets AI_BASE_URL, causing the SDK to send the request to
+ * OpenAI's endpoint and produce a confusing "Incorrect API key" error.
+ */
+function inferBaseURLFromKey(apiKey: string): string | undefined {
+  if (apiKey.startsWith("sk-or-")) return PROVIDER_BASE_URLS.openrouter;
+  if (apiKey.startsWith("gsk_")) return PROVIDER_BASE_URLS.groq;
+  if (apiKey.startsWith("sk-ant-")) return PROVIDER_BASE_URLS.anthropic;
+  return undefined;
+}
+
+function guessProviderFromKey(apiKey: string): string {
+  if (apiKey.startsWith("sk-or-")) return "openrouter";
+  if (apiKey.startsWith("gsk_")) return "groq";
+  if (apiKey.startsWith("sk-ant-")) return "anthropic";
+  if (apiKey.startsWith("AIza")) return "gemini";
+  return "openai";
+}
+
+function guessProviderFromBaseURL(baseURL: string | undefined): string | undefined {
+  if (!baseURL) return undefined;
   const url = baseURL.toLowerCase();
   if (url.includes("openrouter")) return "openrouter";
   if (url.includes("groq")) return "groq";
   if (url.includes("anthropic")) return "anthropic";
   if (url.includes("googleapis")) return "gemini";
   if (url.includes("localhost") || url.includes("127.0.0.1")) return "ollama";
+  if (url.includes("openai.com")) return "openai";
   return "openai-compat";
 }
 
